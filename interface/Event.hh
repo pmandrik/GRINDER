@@ -6,29 +6,33 @@
 #include <Rtypes.h>
 
 namespace grinder{
-  
-  // ========================================================= Muon ========================================================= 
-  class Muon{
-    public:
-    Float_t pt, eta, phi, charge, isLoose, isMedium, isTight, relIsoTrk, relIsoPF;
-  };
-
-  // ========================================================= Electron ========================================================= 
-  class Electron{
-    public:
-    Float_t pt, eta, phi, charge;
-  };
-
-  // ========================================================= Jet ========================================================= 
-  class Jet{
-    public:
-    Float_t pt, eta, phi, charge;
-  };
-
   // ========================================================= Photon ========================================================= 
   class Photon{
     public:
     Float_t pt, eta, phi;
+    Bool_t  isLoose, isMedium, isTight;
+    Float_t mva_value;
+    Int_t   mva_category;
+    Float_t sumChargedHadronPt, sumNeutralHadronEt, sumPhotonEt, sumPUPt;
+  };
+  // ========================================================= Electron ========================================================= 
+  class Electron{
+    public:
+    Float_t pt, eta, phi, charge;
+    Bool_t  isLoose, isMedium, isTight;
+    Float_t sumChargedHadronPt, sumNeutralHadronEt, sumPhotonEt, sumPUPt;
+  };
+  // ========================================================= Muon ========================================================= 
+  class Muon{
+    public:
+    Float_t pt, eta, phi, relIsoTrk, relIsoPF;
+    Int_t charge;
+    Bool_t isLoose, isMedium, isTight;
+  };
+  // ========================================================= Jet ========================================================= 
+  class Jet{
+    public:
+    Float_t pt, eta, phi, charge;
   };
 
   // ========================================================= Event ========================================================= 

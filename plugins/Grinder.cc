@@ -19,6 +19,9 @@
 #include <DataFormats/PatCandidates/interface/Jet.h> 
 #include <DataFormats/PatCandidates/interface/MET.h> 
 
+#include "RecoEgamma/EgammaTools/interface/EffectiveAreas.h"
+#include "DataFormats/EgammaCandidates/interface/GsfElectron.h"
+
 #include <DataFormats/VertexReco/interface/VertexFwd.h>   // reco::VertexCollection
 #include <DataFormats/VertexReco/interface/Vertex.h>      // reco::Vertex
 
@@ -86,6 +89,18 @@ class Grinder : public edm::one::EDAnalyzer<edm::one::SharedResources>  {
       std::vector<grinder::Muon>     *muons_ptr;
       std::vector<grinder::Photon>   *photons_ptr;
       std::vector<grinder::Electron> *electrons_ptr;
+
+      // Photons
+      std::string photon_loose_id_token, photon_medium_id_token, photon_tight_id_token, photon_mva_token, photon_mva_token_val, photon_mva_token_cat;
+      EffectiveAreas effAreaChHadrons;
+      EffectiveAreas effAreaNeuHadrons;
+      EffectiveAreas effAreaPhotons;
+      float superCluster_eta;
+      edm::Handle< double > rho;
+
+      // Electrons
+      std::string electron_loose_id_token, electron_medium_id_token, electron_tight_id_token;
+      const reco::GsfElectron::PflowIsolationVariables * pfIso;
 };
 
 //
@@ -99,7 +114,11 @@ class Grinder : public edm::one::EDAnalyzer<edm::one::SharedResources>  {
 //
 // constructors and destructor
 //
-Grinder::Grinder(const edm::ParameterSet& iConfig){
+Grinder::Grinder(const edm::ParameterSet& iConfig) : 
+  effAreaChHadrons( (iConfig.getParameter<edm::FileInPath>("effAreaChHadFile")).fullPath() ),
+  effAreaNeuHadrons( (iConfig.getParameter<edm::FileInPath>("effAreaNeuHadFile")).fullPath() ),
+  effAreaPhotons( (iConfig.getParameter<edm::FileInPath>("effAreaPhoFile")).fullPath() )
+{
   //now do what ever initialization is needed
   usesResource("TFileService");
 
@@ -116,7 +135,22 @@ Grinder::Grinder(const edm::ParameterSet& iConfig){
 
   outTree = fileService->make<TTree>("Events", "Events");
 
-    
+  // read Photons options
+  photon_loose_id_token  = iConfig.getParameter<std::string>("photon_loose_id_token");
+  photon_medium_id_token = iConfig.getParameter<std::string>("photon_medium_id_token");
+  photon_tight_id_token  = iConfig.getParameter<std::string>("photon_tight_id_token");
+  photon_mva_token       = iConfig.getParameter<std::string>("photon_mva_token");
+  photon_mva_token_val   = photon_mva_token + "Values";
+  photon_mva_token_cat   = photon_mva_token + "Categories";
+
+  // read Electron options
+  electron_loose_id_token  = iConfig.getParameter<std::string>("electron_loose_id_token");
+  electron_medium_id_token = iConfig.getParameter<std::string>("electron_medium_id_token");
+  electron_tight_id_token  = iConfig.getParameter<std::string>("electron_tight_id_token");
+
+  // read Muon options
+
+  // setup output data
   event_ptr     = &event;
   jets_ptr      = &jets;
   muons_ptr     = &muons;
@@ -178,16 +212,63 @@ void Grinder::analyze(const edm::Event& iEvent, const edm::EventSetup& iSetup){
 */
 
   // iterate over photons
+  iEvent.getByLabel("fixedGridRhoFastjetAll", rho);
   edm::Handle<edm::View<pat::Photon>> srcPhotons;
   iEvent.getByToken(photonToken, srcPhotons);
   for (unsigned i = 0; i < srcPhotons->size(); ++i){
     pat::Photon const &ph = srcPhotons->at(i);
 
-    photon.pt = ph.pt();
+    photon.pt  = ph.pt();
     photon.eta = ph.eta();
     photon.phi = ph.phi();
 
+    // if( photon.pt <  )
+
+    // cut based ID 
+    // https://twiki.cern.ch/twiki/bin/view/CMS/EgammaMiniAODV2#Accessing_ID_result
+    photon.isLoose  = ph.photonID( photon_loose_id_token  );
+    photon.isMedium = ph.photonID( photon_medium_id_token );
+    photon.isTight  = ph.photonID( photon_tight_id_token  );
+
+    // MVA base ID
+    // https://twiki.cern.ch/twiki/bin/view/CMS/EgammaMiniAODV2#Accessing_MVA_variables
+    photon.mva_value    = ph.userFloat( photon_mva_token_val );
+    photon.mva_category = ph.userInt( photon_mva_token_cat );
+
+    // ISO https://twiki.cern.ch/twiki/bin/view/CMS/EgammaPFBasedIsolationRun2
+    // https://github.com/varuns23/phoJetAnalysis/blob/master/phoJetNtuplizer/plugins/phoJetNtuplizer_photons.cc
+    superCluster_eta = fabs( ph.superCluster()->eta());
+    photon.sumChargedHadronPt = std::max( 0.0, ph.userFloat("phoChargedIsolation")       - (*rho) * effAreaChHadrons.getEffectiveArea( superCluster_eta )  );
+    photon.sumNeutralHadronEt = std::max( 0.0, ph.userFloat("phoNeutralHadronIsolation") - (*rho) * effAreaNeuHadrons.getEffectiveArea( superCluster_eta ) );
+    photon.sumPhotonEt        = std::max( 0.0, ph.userFloat("phoPhotonIsolation")        - (*rho) * effAreaPhotons.getEffectiveArea( superCluster_eta )    );
+
     photons.emplace_back( photon );
+  }
+
+  // iterate over electrons
+  edm::Handle<edm::View<pat::Electron>> srcElectrons;
+  iEvent.getByToken(electronToken, srcElectrons);
+  for (unsigned i = 0; i < srcElectrons->size(); ++i){
+    pat::Electron const &el = srcElectrons->at(i);
+
+    electron.pt = el.pt();
+    electron.eta = el.eta();
+    electron.phi = el.phi();
+
+    // cut based ID
+    // https://twiki.cern.ch/twiki/bin/view/CMS/EgammaMiniAODV2#Accessing_ID_result
+    electron.isLoose  = el.electronID( electron_loose_id_token  );
+    electron.isMedium = el.electronID( electron_medium_id_token );
+    electron.isTight  = el.electronID( electron_tight_id_token  );
+
+    // ISO https://twiki.cern.ch/twiki/bin/view/CMS/EgammaPFBasedIsolationRun2
+    pfIso = & ( el.pfIsolationVariables() );
+    electron.sumChargedHadronPt = pfIso->sumChargedHadronPt;
+    electron.sumNeutralHadronEt = pfIso->sumNeutralHadronEt;
+    electron.sumPhotonEt        = pfIso->sumPhotonEt;
+    electron.sumPUPt            = pfIso->sumPUPt;
+
+    electrons.emplace_back( electron );
   }
 
   // iterate over muons
@@ -213,21 +294,6 @@ void Grinder::analyze(const edm::Event& iEvent, const edm::EventSetup& iSetup){
     muon.relIsoPF  = isolationR03.sumPt/mu.pt();
   
     muons.emplace_back( muon );
-  }
-*/
-
-  // iterate over electrons TODO
-/*
-  edm::Handle<edm::View<pat::Electron>> srcElectrons;
-  iEvent.getByToken(electronToken, srcElectrons);
-  for (unsigned i = 0; i < srcElectrons->size(); ++i){
-    pat::Electron const &el = srcElectrons->at(i);
-
-    electron.pt = el.pt();
-    electron.eta = el.eta();
-    electron.phi = el.phi();
-
-    electrons.emplace_back( electron );
   }
 */
 
