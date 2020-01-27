@@ -14,13 +14,16 @@ namespace grinder{
     Float_t mva_value;
     Int_t   mva_category;
     Float_t sumChargedHadronPt, sumNeutralHadronEt, sumPhotonEt, sumPUPt;
+    Float_t ecalEnergyPreCorr, ecalEnergyPostCorr, energyScaleValue, energySigmaValue, energyScaleUp, energyScaleDown, energyScaleStatUp, energyScaleStatDown, energyScaleSystUp, energyScaleSystDown, energyScaleGainUp, energyScaleGainDown, energyScaleEtUp, energyScaleEtDown, energySigmaUp, energySigmaDown, energySigmaPhiUp, energySigmaPhiDown, energySigmaRhoUp, energySigmaRhoDown;
   };
   // ========================================================= Electron ========================================================= 
   class Electron{
     public:
-    Float_t pt, eta, phi, charge;
+    Float_t pt, eta, phi;
+    Int_t charge;
     Bool_t  isLoose, isMedium, isTight;
     Float_t sumChargedHadronPt, sumNeutralHadronEt, sumPhotonEt, sumPUPt;
+    Float_t ecalTrkEnergyPreCorr, ecalTrkEnergyPostCorr, energyScaleValue, energySigmaValue, energyScaleUp, energyScaleDown, energyScaleStatUp, energyScaleStatDown, energyScaleSystUp, energyScaleSystDown, energyScaleGainUp, energyScaleGainDown, energyScaleEtUp, energyScaleEtDown, energySigmaUp, energySigmaDown, energySigmaPhiUp, energySigmaPhiDown, energySigmaRhoUp, energySigmaRhoDown;
   };
   // ========================================================= Muon ========================================================= 
   class Muon{
@@ -32,7 +35,7 @@ namespace grinder{
   // ========================================================= Jet ========================================================= 
   class Jet{
     public:
-    Float_t pt, eta, phi, charge;
+    Float_t pt, eta, phi, m, charge, area;
   };
 
   // ========================================================= Event ========================================================= 
@@ -42,6 +45,8 @@ namespace grinder{
     UInt_t lumi;
     ULong64_t event;
     UShort_t bunchCrossing;
+
+    Float_t angular_pt_density;
   };
 
 };

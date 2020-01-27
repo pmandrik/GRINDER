@@ -7,4 +7,7 @@
 <use name="PhysicsTools/UtilAlgos"/> <!-- for TFileService-->
 <use name="FWCore/ServiceRegistry"/> <!-- for TFileService-->
 
+<use name="RecoEgamma/EgammaTools" />
+<use name="RecoEgamma/PhotonIdentification" />
+
 <flags EDM_PLUGIN="1"/>

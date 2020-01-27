@@ -14,11 +14,7 @@ cmsnev
 git cms-init
 # Extra packages for Photon ID from https://twiki.cern.ch/twiki/bin/view/CMS/EgammaPostRecoRecipes#102X
 git cms-merge-topic cms-egamma:PhotonIDValueMapSpeedup1029
-scram b -j 8
-git clone git@github.com:cms-egamma/EgammaPostRecoTools.git  EgammaUser/EgammaPostRecoTools
-cd  EgammaUser/EgammaPostRecoTools
-git checkout master
-cd -
+git cms-merge-topic cms-egamma:EgammaPostRecoTools
 scram b -j 8
 # GRIDNER packages
 mkdir -p Analysis; cd Analysis;

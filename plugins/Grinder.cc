@@ -22,6 +22,8 @@
 #include "RecoEgamma/EgammaTools/interface/EffectiveAreas.h"
 #include "DataFormats/EgammaCandidates/interface/GsfElectron.h"
 
+#include "DataFormats/MuonReco/interface/MuonSelectors.h"
+
 #include <DataFormats/VertexReco/interface/VertexFwd.h>   // reco::VertexCollection
 #include <DataFormats/VertexReco/interface/Vertex.h>      // reco::Vertex
 
@@ -97,6 +99,7 @@ class Grinder : public edm::one::EDAnalyzer<edm::one::SharedResources>  {
       EffectiveAreas effAreaPhotons;
       float superCluster_eta;
       edm::Handle< double > rho;
+      edm::EDGetTokenT<double> rhoToken;
 
       // Electrons
       std::string electron_loose_id_token, electron_medium_id_token, electron_tight_id_token;
@@ -128,6 +131,7 @@ Grinder::Grinder(const edm::ParameterSet& iConfig) :
   metToken      = consumes<edm::View<pat::MET>>(iConfig.getParameter<edm::InputTag>("mets_token"));
   electronToken = consumes<edm::View<pat::Electron>>(iConfig.getParameter<edm::InputTag>("electrons_token"));
   tauToken      = consumes<edm::View<pat::Tau>>(iConfig.getParameter<edm::InputTag>("taus_token"));
+  rhoToken      = consumes<double>(iConfig.getParameter<edm::InputTag>("rho_token"));
 
   primaryVerticesToken = consumes<reco::VertexCollection>(iConfig.getParameter<edm::InputTag>("primaryVertex_token"));
   //FIXME hltPrescalesToken = consumes<pat::PackedTriggerPrescales>(cfg.getParameter<edm::InputTag>("hltPrescales"));
@@ -187,6 +191,9 @@ void Grinder::analyze(const edm::Event& iEvent, const edm::EventSetup& iSetup){
   event.event = iEvent.id().event();
   if(iEvent.isRealData()) event.bunchCrossing = iEvent.bunchCrossing();
 
+  iEvent.getByToken(rhoToken, rho);
+  event.angular_pt_density = (*rho);
+
   // Read prescales
 /*
   edm::Handle<pat::PackedTriggerPrescales> hltPrescales;
@@ -197,22 +204,17 @@ void Grinder::analyze(const edm::Event& iEvent, const edm::EventSetup& iSetup){
   event.prescale = hltPrescales->getPrescaleForIndex(t.second.index) * l1tPrescales->getPrescaleForIndex(t.second.index);
 */
 
-  // Read primary vertices collection
-/*
+  // Read primary vertices collection // FIXME
   edm::Handle<reco::VertexCollection> vertices;
   iEvent.getByToken(primaryVerticesToken, vertices);
-
   if (vertices->size() == 0){
     edm::Exception excp(edm::errors::LogicError);
     excp << "Event contains zero good primary vertices.\n";
     excp.raise();
   }
-
-  const reco::Vertex PrimaryVertex = vertices->front(); // why this? FIXME
-*/
+  const reco::Vertex PrimaryVertex = vertices->front();
 
   // iterate over photons
-  iEvent.getByLabel("fixedGridRhoFastjetAll", rho);
   edm::Handle<edm::View<pat::Photon>> srcPhotons;
   iEvent.getByToken(photonToken, srcPhotons);
   for (unsigned i = 0; i < srcPhotons->size(); ++i){
@@ -242,6 +244,29 @@ void Grinder::analyze(const edm::Event& iEvent, const edm::EventSetup& iSetup){
     photon.sumNeutralHadronEt = std::max( 0.0, ph.userFloat("phoNeutralHadronIsolation") - (*rho) * effAreaNeuHadrons.getEffectiveArea( superCluster_eta ) );
     photon.sumPhotonEt        = std::max( 0.0, ph.userFloat("phoPhotonIsolation")        - (*rho) * effAreaPhotons.getEffectiveArea( superCluster_eta )    );
 
+    // Energy Scale and Smearing
+    // https://twiki.cern.ch/twiki/bin/view/CMS/EgammaMiniAODV2#Energy_Scale_and_Smearing
+    photon.ecalEnergyPreCorr   = ph.userFloat("ecalEnergyPreCorr");
+    photon.ecalEnergyPostCorr  = ph.userFloat("ecalEnergyPostCorr");
+    photon.energyScaleValue    = ph.userFloat("energyScaleValue");
+    photon.energySigmaValue    = ph.userFloat("energySigmaValue");
+    photon.energyScaleUp       = ph.userFloat("energyScaleUp");
+    photon.energyScaleDown     = ph.userFloat("energyScaleDown");
+    photon.energyScaleStatUp   = ph.userFloat("energyScaleStatUp");
+    photon.energyScaleStatDown = ph.userFloat("energyScaleStatDown");
+    photon.energyScaleSystUp   = ph.userFloat("energyScaleSystUp");
+    photon.energyScaleSystDown = ph.userFloat("energyScaleSystDown");
+    photon.energyScaleGainUp   = ph.userFloat("energyScaleGainUp");
+    photon.energyScaleGainDown = ph.userFloat("energyScaleGainDown");
+    photon.energyScaleEtUp     = ph.userFloat("energyScaleEtUp");
+    photon.energyScaleEtDown   = ph.userFloat("energyScaleEtDown");
+    photon.energySigmaUp       = ph.userFloat("energySigmaUp");
+    photon.energySigmaDown     = ph.userFloat("energySigmaDown");
+    photon.energySigmaPhiUp    = ph.userFloat("energySigmaPhiUp");
+    photon.energySigmaPhiDown  = ph.userFloat("energySigmaPhiDown");
+    photon.energySigmaRhoUp    = ph.userFloat("energySigmaRhoUp");
+    photon.energySigmaRhoDown  = ph.userFloat("energySigmaRhoDown");
+
     photons.emplace_back( photon );
   }
 
@@ -251,9 +276,10 @@ void Grinder::analyze(const edm::Event& iEvent, const edm::EventSetup& iSetup){
   for (unsigned i = 0; i < srcElectrons->size(); ++i){
     pat::Electron const &el = srcElectrons->at(i);
 
-    electron.pt = el.pt();
-    electron.eta = el.eta();
-    electron.phi = el.phi();
+    electron.pt     = el.pt();
+    electron.eta    = el.eta();
+    electron.phi    = el.phi();
+    electron.charge = el.charge();
 
     // cut based ID
     // https://twiki.cern.ch/twiki/bin/view/CMS/EgammaMiniAODV2#Accessing_ID_result
@@ -268,49 +294,79 @@ void Grinder::analyze(const edm::Event& iEvent, const edm::EventSetup& iSetup){
     electron.sumPhotonEt        = pfIso->sumPhotonEt;
     electron.sumPUPt            = pfIso->sumPUPt;
 
+    // Energy Scale and Smearing
+    // https://twiki.cern.ch/twiki/bin/view/CMS/EgammaMiniAODV2#Energy_Scale_and_Smearing
+    electron.ecalTrkEnergyPreCorr  = el.userFloat("ecalTrkEnergyPreCorr");
+    electron.ecalTrkEnergyPostCorr = el.userFloat("ecalTrkEnergyPostCorr");
+    electron.energyScaleValue      = el.userFloat("energyScaleValue");
+    electron.energySigmaValue      = el.userFloat("energySigmaValue");
+    electron.energyScaleUp         = el.userFloat("energyScaleUp");
+    electron.energyScaleDown       = el.userFloat("energyScaleDown");
+    electron.energyScaleStatUp     = el.userFloat("energyScaleStatUp");
+    electron.energyScaleStatDown   = el.userFloat("energyScaleStatDown");
+    electron.energyScaleSystUp     = el.userFloat("energyScaleSystUp");
+    electron.energyScaleSystDown   = el.userFloat("energyScaleSystDown");
+    electron.energyScaleGainUp     = el.userFloat("energyScaleGainUp");
+    electron.energyScaleGainDown   = el.userFloat("energyScaleGainDown");
+    electron.energyScaleEtUp       = el.userFloat("energyScaleEtUp");
+    electron.energyScaleEtDown     = el.userFloat("energyScaleEtDown");
+    electron.energySigmaUp         = el.userFloat("energySigmaUp");
+    electron.energySigmaDown       = el.userFloat("energySigmaDown");
+    electron.energySigmaPhiUp      = el.userFloat("energySigmaPhiUp");
+    electron.energySigmaPhiDown    = el.userFloat("energySigmaPhiDown");
+    electron.energySigmaRhoUp      = el.userFloat("energySigmaRhoUp");
+    electron.energySigmaRhoDown    = el.userFloat("energySigmaRhoDown");
+
     electrons.emplace_back( electron );
   }
 
   // iterate over muons
-/*
   edm::Handle<edm::View<pat::Muon>> srcMuons;
   iEvent.getByToken(muonToken, srcMuons);
 
   for (unsigned i = 0; i < srcMuons->size(); ++i){
     pat::Muon const &mu = srcMuons->at(i);
-    // reco::MuonPFIsolation const & pfIsolationR04 = mu.pfIsolationR04(); FIXME
-    // reco::MuonIsolation const & isolationR03 = mu.isolationR03();       FIXME
 
-    muon.pt = mu.pt();
-    muon.eta = mu.eta();
-    muon.phi = mu.phi();
+    muon.pt     = mu.pt();
+    muon.eta    = mu.eta();
+    muon.phi    = mu.phi();
     muon.charge = mu.charge();
 
-    muon.isLoose = mu.isLooseMuon();
-    muon.isMedium = mu.isMediumMuon();
-    muon.isTight = mu.isTightMuon( PrimaryVertex );
+    // ID
+    muon.isLoose  = mu.passed( reco::Muon::CutBasedIdLoose  );
+    muon.isMedium = mu.passed( reco::Muon::CutBasedIdMedium );
+    muon.isTight  = mu.passed( reco::Muon::CutBasedIdTight  );
 
-    muon.relIsoTrk = (pfIsolationR04.sumChargedHadronPt + std::max(0., pfIsolationR04.sumNeutralHadronEt + pfIsolationR04.sumPhotonEt - 0.5*pfIsolationR04.sumPUPt))/mu.pt();
-    muon.relIsoPF  = isolationR03.sumPt/mu.pt();
+    // ISO
+    // https://twiki.cern.ch/twiki/bin/view/CMS/SWGuideMuonIdRun2#Muon_Identification
+    muon.relIsoTrk = (mu.pfIsolationR04().sumChargedHadronPt + std::max(0., mu.pfIsolationR04().sumNeutralHadronEt + mu.pfIsolationR04().sumPhotonEt - 0.5*mu.pfIsolationR04().sumPUPt))/mu.pt();
+    muon.relIsoPF  = mu.isolationR03().sumPt/mu.pt();
+
+    // SF
+    // https://twiki.cern.ch/twiki/bin/viewauth/CMS/MuonReferenceEffsRun2
   
     muons.emplace_back( muon );
   }
-*/
 
   // iterate over jets TODO
-/*
   edm::Handle<edm::View<pat::Jet>> srcJets;
   iEvent.getByToken(jetToken, srcJets);
   for (unsigned i = 0; i < srcJets->size(); ++i){
     pat::Jet const &j = srcJets->at(i);
 
-    jet.pt = j.pt();
-    jet.eta = j.eta();
-    jet.phi = j.phi();
+    // RAW P4 vector 
+    // https://twiki.cern.ch/twiki/bin/view/CMS/TopJME#Jets
+    reco::Candidate::LorentzVector const &rawP4 = j.correctedP4("Uncorrected");
+    jet.pt  = rawP4.pt();
+    jet.eta = rawP4.eta();
+    jet.phi = rawP4.phi();
+    jet.m   = rawP4.mass();
+
+    jet.charge = j.jetCharge();
+    jet.area   = j.jetArea();
 
     jets.emplace_back( jet );
   }
-*/
 
   // iterate over MET TODO
 /*
