@@ -55,6 +55,13 @@ if YEAR_ERA == "2016":
   electron_medium_id = "cutBasedElectronID-Fall17-94X-V1-medium"
   electron_tight_id  = "cutBasedElectronID-Fall17-94X-V1-tight"
 
+### Jets options
+jet_JEC_Uncertainty_datafile = "" # unused
+if YEAR_ERA == "2016":
+  pass
+if YEAR_ERA == "2017":
+  pass
+
 ### Extra paths
 if DEBUG_print_content:
   process.content = cms.EDAnalyzer("EventContentAnalyzer")
@@ -63,26 +70,29 @@ if DEBUG_print_content:
 ### Main path
 process.grinderMain = cms.EDAnalyzer('Grinder',
   # events info
+  era_label           = cms.string( YEAR_ERA ),
   primaryVertex_token = cms.InputTag('offlineSlimmedPrimaryVertices'),
   # photons
-  photons_token = cms.InputTag('slimmedPhotons'),
-  photon_loose_id_token = cms.string(photon_loose_id),
+  photons_token          = cms.InputTag('slimmedPhotons'),
+  photon_loose_id_token  = cms.string(photon_loose_id),
   photon_medium_id_token = cms.string(photon_medium_id),
-  photon_tight_id_token = cms.string(photon_tight_id),
-  photon_mva_token = cms.string(photon_mva),
-  effAreaChHadFile = cms.FileInPath( effAreaChHad ),
-  effAreaNeuHadFile= cms.FileInPath( effAreaNeuHad ),
-  effAreaPhoFile   = cms.FileInPath( effAreaPho ),
-  rho_token        = cms.InputTag("fixedGridRhoFastjetAll"),
+  photon_tight_id_token  = cms.string(photon_tight_id),
+  photon_mva_token       = cms.string(photon_mva),
+  effAreaChHadFile       = cms.FileInPath( effAreaChHad ),
+  effAreaNeuHadFile      = cms.FileInPath( effAreaNeuHad ),
+  effAreaPhoFile         = cms.FileInPath( effAreaPho ),
+  rho_token              = cms.InputTag("fixedGridRhoFastjetAll"),
   # electrons
-  electrons_token = cms.InputTag('slimmedElectrons'),
-  electron_loose_id_token = cms.string(electron_loose_id),
+  electrons_token          = cms.InputTag('slimmedElectrons'),
+  electron_loose_id_token  = cms.string(electron_loose_id),
   electron_medium_id_token = cms.string(electron_medium_id),
-  electron_tight_id_token = cms.string(electron_tight_id),
+  electron_tight_id_token  = cms.string(electron_tight_id),
   # muons
-  muons_token = cms.InputTag('slimmedMuons'),
+  muons_token    = cms.InputTag('slimmedMuons'),
   # jets
-  jets_token = cms.InputTag('slimmedJets'),
+  jets_token     = cms.InputTag('slimmedJets'),
+  jet_type_label = cms.string('AK4PF'),
+  jet_JEC_Uncertainty_datafile_token = cms.InputTag( jet_JEC_Uncertainty_datafile ),
   # mets
   mets_token = cms.InputTag('slimmedMETs'),
   # taus

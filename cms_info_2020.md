@@ -18,8 +18,10 @@ git cms-merge-topic cms-egamma:EgammaPostRecoTools
 scram b -j 8
 # GRIDNER packages
 mkdir -p Analysis; cd Analysis;
-git clone https://github.com/pmandrik/GRINDER.git GRINDER; cd GRINDER
+git clone git@github.com:pmandrik/GRINDER.git GRINDER; cd GRINDER
 scram b
+# Extra data
+cd data; ./download.sh; cd -
 ```
 
 **-> 2017 <-**
@@ -31,8 +33,10 @@ git cms-init
 # Extra packages for Photon ID from https://twiki.cern.ch/twiki/bin/view/CMS/EgammaPostRecoRecipes#102XTODO
 # GRIDNER packages
 mkdir -p Analysis; cd Analysis;
-git clone https://github.com/pmandrik/GRINDER.git GRINDER; cd GRINDER
+git clone git@github.com:pmandrik/GRINDER.git GRINDER; cd GRINDER
 scram b
+# Extra data
+cd data; ./download.sh; cd -
 ```
 
 **-> 2018 <-**
@@ -44,8 +48,10 @@ git cms-init
 # Extra packages for Photon ID from https://twiki.cern.ch/twiki/bin/view/CMS/EgammaPostRecoRecipes#102XTODO
 # GRIDNER packages
 mkdir -p Analysis; cd Analysis;
-git clone https://github.com/pmandrik/GRINDER.git GRINDER; cd GRINDER
+git clone git@github.com:pmandrik/GRINDER.git GRINDER; cd GRINDER
 scram b
+# Extra data
+cd data; ./download.sh; cd -
 ```
 
 

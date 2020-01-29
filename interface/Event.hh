@@ -36,6 +36,8 @@ namespace grinder{
   class Jet{
     public:
     Float_t pt, eta, phi, m, charge, area;
+    std::vector<Float_t> JEC_unc_v_u, JEC_unc_v_d;
+    Float_t resolution, sf, sf_u, sf_d;
   };
 
   // ========================================================= Event ========================================================= 
