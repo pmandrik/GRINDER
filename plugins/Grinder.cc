@@ -19,11 +19,22 @@
 #include <DataFormats/PatCandidates/interface/Jet.h> 
 #include <DataFormats/PatCandidates/interface/MET.h> 
 
+// electrons / photons
 #include "RecoEgamma/EgammaTools/interface/EffectiveAreas.h"
 #include "DataFormats/EgammaCandidates/interface/GsfElectron.h"
 
+// muons
 #include "DataFormats/MuonReco/interface/MuonSelectors.h"
 
+// jets
+#include <FWCore/Framework/interface/ESHandle.h>
+#include <FWCore/Framework/interface/EventSetup.h>
+#include <CondFormats/JetMETObjects/interface/JetCorrectionUncertainty.h>
+#include <CondFormats/JetMETObjects/interface/JetCorrectorParameters.h>
+#include <JetMETCorrections/Objects/interface/JetCorrectionsRecord.h>
+#include <JetMETCorrections/Modules/interface/JetResolution.h>
+
+// vertexes
 #include <DataFormats/VertexReco/interface/VertexFwd.h>   // reco::VertexCollection
 #include <DataFormats/VertexReco/interface/Vertex.h>      // reco::Vertex
 
@@ -38,23 +49,13 @@
 #include "Analysis/GRINDER/interface/Event.hh"
 using namespace grinder;
 
-//
-// class declaration
-//
-
-// If the analyzer does not use TFileService, please remove
-// the template argument to the base class so the class inherits
-// from  edm::one::EDAnalyzer<> and also remove the line from
-// constructor "usesResource("TFileService");"
-// This will improve performance in multithreaded jobs.
-
 class Grinder : public edm::one::EDAnalyzer<edm::one::SharedResources>  {
    public:
       explicit Grinder(const edm::ParameterSet&);
       ~Grinder();
 
       static void fillDescriptions(edm::ConfigurationDescriptions& descriptions);
-
+      void beginRun(edm::Run const &, edm::EventSetup const &setup);
 
    private:
       virtual void beginJob() override;
@@ -92,6 +93,8 @@ class Grinder : public edm::one::EDAnalyzer<edm::one::SharedResources>  {
       std::vector<grinder::Photon>   *photons_ptr;
       std::vector<grinder::Electron> *electrons_ptr;
 
+      std::string era_label;
+
       // Photons
       std::string photon_loose_id_token, photon_medium_id_token, photon_tight_id_token, photon_mva_token, photon_mva_token_val, photon_mva_token_cat;
       EffectiveAreas effAreaChHadrons;
@@ -104,6 +107,20 @@ class Grinder : public edm::one::EDAnalyzer<edm::one::SharedResources>  {
       // Electrons
       std::string electron_loose_id_token, electron_medium_id_token, electron_tight_id_token;
       const reco::GsfElectron::PflowIsolationVariables * pfIso;
+
+      // Jets
+      // JEC
+      std::string jet_type_label;
+      std::unique_ptr<JetCorrectionUncertainty> jecUnc;
+      std::vector< std::string >  jecUnc_names;
+      std::vector<JetCorrectionUncertainty*> jecUnc_v;
+      // JER
+      std::unique_ptr<JME::JetResolution> jerResolution_ptr;
+      std::unique_ptr<JME::JetResolution> jerScaleFactor_ptr;
+
+      JME::JetResolution jerResolution;
+      JME::JetResolutionScaleFactor jerScaleFactor;
+      JME::JetParameters jerResolution_parameters, jerScaleFactor_parameters;
 };
 
 //
@@ -124,6 +141,7 @@ Grinder::Grinder(const edm::ParameterSet& iConfig) :
 {
   //now do what ever initialization is needed
   usesResource("TFileService");
+  era_label     = iConfig.getParameter<std::string>("era_label");
 
   muonToken     = consumes<edm::View<pat::Muon>>(iConfig.getParameter<edm::InputTag>("muons_token"));
   photonToken   = consumes<edm::View<pat::Photon>>(iConfig.getParameter<edm::InputTag>("photons_token"));
@@ -154,6 +172,18 @@ Grinder::Grinder(const edm::ParameterSet& iConfig) :
 
   // read Muon options
 
+  // read Jet options
+  // jecUnc = new JetCorrectionUncertainty( iConfig.getParameter<std::string>("jet_JEC_Uncertainty_datafile_token") );
+  // https://twiki.cern.ch/twiki/bin/view/CMS/JECUncertaintySources#Recommendation_for_analysis
+  jet_type_label = iConfig.getParameter<std::string>("jet_type_label");
+  if(era_label == "2016"){
+    jecUnc_names = {"Total", "SubTotalMC", "SubTotalAbsolute", "SubTotalScale", "SubTotalPt", "SubTotalRelative", "SubTotalPileUp"};
+  }
+  for(auto item : jecUnc_names){
+    jet.JEC_unc_v_u.push_back( 0.f );
+    jet.JEC_unc_v_d.push_back( 0.f );
+  }
+
   // setup output data
   event_ptr     = &event;
   jets_ptr      = &jets;
@@ -169,13 +199,7 @@ Grinder::Grinder(const edm::ParameterSet& iConfig) :
 }
 
 
-Grinder::~Grinder(){
- 
-   // do anything here that needs to be done at desctruction time
-   // (e.g. close files, deallocate resources etc.)
-
-}
-
+Grinder::~Grinder(){}
 
 //
 // member functions
@@ -344,11 +368,11 @@ void Grinder::analyze(const edm::Event& iEvent, const edm::EventSetup& iSetup){
 
     // SF
     // https://twiki.cern.ch/twiki/bin/viewauth/CMS/MuonReferenceEffsRun2
-  
+
     muons.emplace_back( muon );
   }
 
-  // iterate over jets TODO
+  // iterate over AK4 PF CHS jets TODO
   edm::Handle<edm::View<pat::Jet>> srcJets;
   iEvent.getByToken(jetToken, srcJets);
   for (unsigned i = 0; i < srcJets->size(); ++i){
@@ -365,6 +389,32 @@ void Grinder::analyze(const edm::Event& iEvent, const edm::EventSetup& iSetup){
     jet.charge = j.jetCharge();
     jet.area   = j.jetArea();
 
+    // FIXME how to correct jets ???
+
+    // pT scale corrections
+    // https://twiki.cern.ch/twiki/bin/view/CMS/JECUncertaintySources#Recommendation_for_analysis
+    for(int i = jecUnc_v.size()-1; i >= 0; i--){
+      JetCorrectionUncertainty * jecUnc_ptr = jecUnc_v[i];
+      jecUnc_ptr->setJetEta( j.eta() );
+      jecUnc_ptr->setJetPt(  j.pt()  );
+      jet.JEC_unc_v_u[i] = jecUnc->getUncertainty(true);
+      jecUnc_ptr->setJetEta( j.eta() );
+      jecUnc_ptr->setJetPt(  j.pt()  ); 
+      jet.JEC_unc_v_d[i] = jecUnc->getUncertainty(false);
+    }
+
+    // pT resolution
+    // https://twiki.cern.ch/twiki/bin/viewauth/CMS/JetResolution
+    if (not iEvent.isRealData()) {
+      jerResolution_parameters.setJetPt(j.pt()).setJetEta(j.eta());
+      jerScaleFactor_parameters.setJetEta(j.eta()).setRho(rho);
+
+      jet.resolution = jerResolution.getResolution( jerResolution_parameters );
+      jet.sf         = jerScaleFactor.getScaleFactor(jerScaleFactor_parameters);
+      jet.sf_u       = jerScaleFactor.getScaleFactor(jerScaleFactor_parameters, Variation::UP);
+      jet.sf_d       = jerScaleFactor.getScaleFactor(jerScaleFactor_parameters, Variation::DOWN);
+    }
+
     jets.emplace_back( jet );
   }
 
@@ -377,6 +427,23 @@ void Grinder::analyze(const edm::Event& iEvent, const edm::EventSetup& iSetup){
   outTree->Fill();
 }
 
+// ------------ method called when starting to processes a run  ------------
+void Grinder::beginRun(edm::Run const &, edm::EventSetup const &setup){
+  // Construct an object to obtain JEC uncertainty
+  // https://twiki.cern.ch/twiki/bin/view/CMSPublic/WorkBookJetEnergyCorrections?rev=137#JetCorUncertainties
+  edm::ESHandle<JetCorrectorParametersCollection> JetCorParColl;
+  setup.get<JetCorrectionsRecord>().get(jet_type_label, JetCorParColl); 
+  for(std::string name : jecUnc_names){
+    JetCorrectorParameters const & JetCorPar = (*JetCorParColl)[ name.c_str() ];
+    jecUnc_v.push_back( new JetCorrectionUncertainty(JetCorPar) );
+  }
+  // Objects that provide jet energy resolution and its scale factors
+  // https://twiki.cern.ch/twiki/bin/view/CMSPublic/WorkBookJetEnergyResolution#Jet_resolution
+  // jerResolution_ptr.reset(  new JME::JetResolution(           std::move(JME::JetResolution::get(setup,            "AK4PFchs_pt"))));
+  // jerScaleFactor_ptr.reset( new JME::JetResolutionScaleFactor(std::move(JME::JetResolutionScaleFactor::get(setup, "AK4PFchs"   ))));
+  jerResolution  = JME::JetResolution::get(setup,            "AK4PFchs_pt");
+  jerScaleFactor = JME::JetResolutionScaleFactor::get(setup, "AK4PFchs"   );
+}
 
 // ------------ method called once each job just before starting event loop  ------------
 void Grinder::beginJob(){
