@@ -37,7 +37,15 @@ namespace grinder{
     public:
     Float_t pt, eta, phi, m, charge, area;
     std::vector<Float_t> JEC_unc_v_u, JEC_unc_v_d;
-    Float_t resolution, sf, sf_u, sf_d;
+    Float_t resolution, sf, sf_u, sf_d, getJet_pt;
+    Bool_t isTight;
+  };
+  // ========================================================= MET ========================================================= 
+  class MET{
+    public:
+    Float_t pt, eta, phi, gen_pt, gen_phi, significance;
+    std::vector<Float_t> pt_unc_v_u, pt_unc_v_d;
+    std::vector<Float_t> phi_unc_v_u, phi_unc_v_d;
   };
 
   // ========================================================= Event ========================================================= 

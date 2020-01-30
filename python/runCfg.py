@@ -97,6 +97,8 @@ process.grinderMain = cms.EDAnalyzer('Grinder',
   mets_token = cms.InputTag('slimmedMETs'),
   # taus
   taus_token = cms.InputTag('slimmedTaus'),
+  # genjets
+  genjets_token = cms.InputTag('slimmedGenJets'),
 )
 
 process.content = cms.EDAnalyzer("EventContentAnalyzer")

@@ -18,6 +18,7 @@
 #include <DataFormats/PatCandidates/interface/Electron.h> 
 #include <DataFormats/PatCandidates/interface/Jet.h> 
 #include <DataFormats/PatCandidates/interface/MET.h> 
+#include "DataFormats/METReco/interface/GenMET.h"
 
 // electrons / photons
 #include "RecoEgamma/EgammaTools/interface/EffectiveAreas.h"
@@ -33,6 +34,7 @@
 #include <CondFormats/JetMETObjects/interface/JetCorrectorParameters.h>
 #include <JetMETCorrections/Objects/interface/JetCorrectionsRecord.h>
 #include <JetMETCorrections/Modules/interface/JetResolution.h>
+#include <DataFormats/JetReco/interface/GenJet.h>
 
 // vertexes
 #include <DataFormats/VertexReco/interface/VertexFwd.h>   // reco::VertexCollection
@@ -47,6 +49,7 @@
 
 // Grinder
 #include "Analysis/GRINDER/interface/Event.hh"
+#include "Analysis/GRINDER/plugins/Grinder_extensions.cc"
 using namespace grinder;
 
 class Grinder : public edm::one::EDAnalyzer<edm::one::SharedResources>  {
@@ -71,6 +74,7 @@ class Grinder : public edm::one::EDAnalyzer<edm::one::SharedResources>  {
       edm::EDGetTokenT<edm::View<pat::Jet>>       jetToken;
       edm::EDGetTokenT<edm::View<pat::MET>>       metToken;
       edm::EDGetTokenT<edm::View<pat::Tau>>       tauToken;
+      edm::EDGetTokenT<edm::View<reco::GenJet>>   genJetToken;
 
       edm::EDGetTokenT<reco::VertexCollection> primaryVerticesToken;
 
@@ -82,6 +86,7 @@ class Grinder : public edm::one::EDAnalyzer<edm::one::SharedResources>  {
       grinder::Muon muon;
       grinder::Photon photon;
       grinder::Electron electron;
+      grinder::MET met;
 
       std::vector<grinder::Jet>      jets;
       std::vector<grinder::Muon>     muons;
@@ -92,6 +97,7 @@ class Grinder : public edm::one::EDAnalyzer<edm::one::SharedResources>  {
       std::vector<grinder::Muon>     *muons_ptr;
       std::vector<grinder::Photon>   *photons_ptr;
       std::vector<grinder::Electron> *electrons_ptr;
+      grinder::MET                   *met_ptr;
 
       std::string era_label;
 
@@ -109,6 +115,9 @@ class Grinder : public edm::one::EDAnalyzer<edm::one::SharedResources>  {
       const reco::GsfElectron::PflowIsolationVariables * pfIso;
 
       // Jets
+      double jet_pt_cut;
+      // ID
+      double NHF, NEMF, CHF, MUF, CEMF, NumConst, NumNeutralParticles, CHM;
       // JEC
       std::string jet_type_label;
       std::unique_ptr<JetCorrectionUncertainty> jecUnc;
@@ -150,6 +159,7 @@ Grinder::Grinder(const edm::ParameterSet& iConfig) :
   electronToken = consumes<edm::View<pat::Electron>>(iConfig.getParameter<edm::InputTag>("electrons_token"));
   tauToken      = consumes<edm::View<pat::Tau>>(iConfig.getParameter<edm::InputTag>("taus_token"));
   rhoToken      = consumes<double>(iConfig.getParameter<edm::InputTag>("rho_token"));
+  genJetToken   = consumes<edm::View<reco::GenJet>>(iConfig.getParameter<edm::InputTag>("genjets_token"));
 
   primaryVerticesToken = consumes<reco::VertexCollection>(iConfig.getParameter<edm::InputTag>("primaryVertex_token"));
   //FIXME hltPrescalesToken = consumes<pat::PackedTriggerPrescales>(cfg.getParameter<edm::InputTag>("hltPrescales"));
@@ -178,11 +188,12 @@ Grinder::Grinder(const edm::ParameterSet& iConfig) :
   jet_type_label = iConfig.getParameter<std::string>("jet_type_label");
   if(era_label == "2016"){
     jecUnc_names = {"Total", "SubTotalMC", "SubTotalAbsolute", "SubTotalScale", "SubTotalPt", "SubTotalRelative", "SubTotalPileUp"};
-  }
+  } // FIXME other years
   for(auto item : jecUnc_names){
     jet.JEC_unc_v_u.push_back( 0.f );
     jet.JEC_unc_v_d.push_back( 0.f );
   }
+  jet_pt_cut = 1.; // FIXME
 
   // setup output data
   event_ptr     = &event;
@@ -190,12 +201,14 @@ Grinder::Grinder(const edm::ParameterSet& iConfig) :
   muons_ptr     = &muons;
   photons_ptr   = &photons;
   electrons_ptr = &electrons;
+  met_ptr       = &met;
 
-  outTree->Branch("Event", &event_ptr);
-  outTree->Branch("Photons", &photons_ptr);
+  outTree->Branch("Event",     &event_ptr);
+  outTree->Branch("Photons",   &photons_ptr);
   outTree->Branch("Electrons", &electrons_ptr);
-  outTree->Branch("Muons", &muons_ptr);
-  outTree->Branch("Jets", &jets_ptr);
+  outTree->Branch("Muons",     &muons_ptr);
+  outTree->Branch("Jets",      &jets_ptr);
+  outTree->Branch("MET",       &met_ptr);
 }
 
 
@@ -372,6 +385,11 @@ void Grinder::analyze(const edm::Event& iEvent, const edm::EventSetup& iSetup){
     muons.emplace_back( muon );
   }
 
+  // Gen jets TODO
+  edm::Handle<edm::View<reco::GenJet>> genJets;
+  if(not iEvent.isRealData())
+    iEvent.getByToken(genJetToken, genJets);
+
   // iterate over AK4 PF CHS jets TODO
   edm::Handle<edm::View<pat::Jet>> srcJets;
   iEvent.getByToken(jetToken, srcJets);
@@ -389,9 +407,39 @@ void Grinder::analyze(const edm::Event& iEvent, const edm::EventSetup& iSetup){
     jet.charge = j.jetCharge();
     jet.area   = j.jetArea();
 
+    // JetID
+    // https://twiki.cern.ch/twiki/bin/view/CMS/JetID
+    NHF  = j.neutralHadronEnergyFraction();
+    NEMF = j.neutralEmEnergyFraction();
+    CHF  = j.chargedHadronEnergyFraction();
+    MUF  = j.muonEnergyFraction();
+    CEMF = j.chargedEmEnergyFraction();
+    NumConst = j.chargedMultiplicity()+j.neutralMultiplicity();
+    NumNeutralParticles = j.neutralMultiplicity();
+    CHM      = j.chargedMultiplicity();
+
+    double eta = rawP4.eta();
+    if(era_label == "2016"){
+      if      ( TMath::Abs( eta ) < 2.7 ) jet.isTight = (NHF<0.90 && NEMF<0.90 && NumConst>1) && ((abs(eta)<=2.4 && CHF>0 && CHM>0 && CEMF<0.99) || abs(eta)>2.4) && abs(eta)<=2.7;
+      else if ( TMath::Abs( eta ) < 3.0 ) jet.isTight = (NHF<0.98 && NEMF>0.01 && NumNeutralParticles>2 && abs(eta)>2.7 && abs(eta)<=3.0 );
+      else                                jet.isTight = (NEMF<0.90 && NumNeutralParticles>10 && abs(eta)>3.0 );
+    }
+    if(era_label == "2017"){
+      if      ( TMath::Abs( eta ) < 2.7 ) jet.isTight = (NHF<0.90 && NEMF<0.90 && NumConst>1) && ((abs(eta)<=2.4 && CHF>0 && CHM>0) || abs(eta)>2.4) && abs(eta)<=2.7;
+      else if ( TMath::Abs( eta ) < 3.0 ) jet.isTight = (NEMF>0.02 && NEMF<0.99 && NumNeutralParticles>2 && abs(eta)>2.7);
+      else                                jet.isTight = (NEMF<0.90 && NumNeutralParticles>10);
+    }
+    else if(era_label == "2018"){
+      if      ( TMath::Abs( eta ) < 2.6 ) jet.isTight = (abs(eta)<=2.6 && CEMF<0.8 && CHM>0 && CHF>0 && NumConst>1 && NEMF<0.9 && MUF <0.8 && NHF < 0.9 ); 
+      else if ( TMath::Abs( eta ) < 2.7 ) jet.isTight = (abs(eta)>2.6 && abs(eta)<=2.7 && CEMF<0.8 && CHM>0 && NEMF<0.99 && MUF <0.8 && NHF < 0.9 ); 
+      else if ( TMath::Abs( eta ) < 3.0 ) jet.isTight = (NEMF>0.02 && NEMF<0.99 && NumNeutralParticles>2 && abs(eta)>2.7 && abs(eta)<=3.0 );
+      else                                jet.isTight = (NEMF<0.90 && NHF>0.2 && NumNeutralParticles>10 && abs(eta)>3.0 );
+    }
+
     // FIXME how to correct jets ???
 
     // pT scale corrections
+    // here you must use the CORRECTED jet pt
     // https://twiki.cern.ch/twiki/bin/view/CMS/JECUncertaintySources#Recommendation_for_analysis
     for(int i = jecUnc_v.size()-1; i >= 0; i--){
       JetCorrectionUncertainty * jecUnc_ptr = jecUnc_v[i];
@@ -402,26 +450,63 @@ void Grinder::analyze(const edm::Event& iEvent, const edm::EventSetup& iSetup){
       jecUnc_ptr->setJetPt(  j.pt()  ); 
       jet.JEC_unc_v_d[i] = jecUnc->getUncertainty(false);
     }
+    double JEC_uncertanty = std::max( jet.JEC_unc_v_u.at( 0 ), jet.JEC_unc_v_d.at( 0 ) );
+    JEC_uncertanty = std::max(JEC_uncertanty, 0.);
 
     // pT resolution
     // https://twiki.cern.ch/twiki/bin/viewauth/CMS/JetResolution
+    double JER_uncertanty = 0;
     if (not iEvent.isRealData()) {
       jerResolution_parameters.setJetPt(j.pt()).setJetEta(j.eta());
-      jerScaleFactor_parameters.setJetEta(j.eta()).setRho(rho);
+      jerScaleFactor_parameters.setJetEta(j.eta()).setRho( *rho );
 
       jet.resolution = jerResolution.getResolution( jerResolution_parameters );
       jet.sf         = jerScaleFactor.getScaleFactor(jerScaleFactor_parameters);
       jet.sf_u       = jerScaleFactor.getScaleFactor(jerScaleFactor_parameters, Variation::UP);
       jet.sf_d       = jerScaleFactor.getScaleFactor(jerScaleFactor_parameters, Variation::DOWN);
+
+      // https://twiki.cern.ch/twiki/bin/view/CMS/JetResolution?rev=54#Smearing_procedures
+      // https://github.com/cms-sw/cmssw/blob/CMSSW_8_0_18/PhysicsTools/PatUtils/interface/SmearedJetProducerT.h#L236-L237
+      reco::GenJet const * genJet = MatchGenJet( j, genJets, 3 * jet.resolution * j.pt() );
+      if (genJet) {
+        jet.getJet_pt = genJet->pt();
+        double energy_factor = ( rawP4.pt() - genJet->pt() ) / rawP4.pt();
+        JER_uncertanty = std::max( { (jet.sf - 1.) * energy_factor, (jet.sf_u - 1.) * energy_factor, (jet.sf_d - 1.) * energy_factor } );
+      } else {
+        jet.getJet_pt = -1;
+        double max_unc = std::max( { TMath::Abs(jet.sf), TMath::Abs(jet.sf_u), TMath::Abs(jet.sf_d) } );
+        JER_uncertanty = jet.resolution * std::sqrt( std::max(std::pow(max_unc, 2) - 1., 0.) );
+      }
     }
 
+    double jet_maxPt = j.pt() * ( 1. + JEC_uncertanty + JER_uncertanty );
+    std::cout << JEC_uncertanty << " " << JER_uncertanty << std::endl;
+    if( jet_maxPt < jet_pt_cut and rawP4.pt() > jet_pt_cut ) continue;
     jets.emplace_back( jet );
   }
 
-  // iterate over MET TODO
-/*
-*/
+  // iterate over MET
+  Handle<View<pat::MET>> metHandle;
+  iEvent.getByToken(metToken, metHandle);
+  pat::MET const & srcMET = metHandle->front();
 
+  // https://twiki.cern.ch/twiki/bin/view/CMSPublic/WorkBookMiniAOD2017#ETmiss
+  met.pt  = srcMET.shiftedPt(pat::MET::NoShift, pat::MET::Type1);
+  met.phi = srcMET.shiftedPhi(pat::MET::NoShift, pat::MET::Type1);
+  met.significance = srcMET.metSignificance();
+  
+  if (not iEvent.isRealData()) {
+      met.gen_pt  = srcMET.genMET()->pt() ;
+      met.gen_phi = srcMET.genMET()->phi();
+
+      using Var = pat::MET::METUncertainty;
+      for (Var const &var: {Var::JetEnUp, Var::JetEnDown, Var::JetResUp, Var::JetResDown, Var::UnclusteredEnUp, Var::UnclusteredEnDown}) {
+        met.pt_unc_v_u.push_back(  srcMET.shiftedPt(var, pat::MET::Type1) ); 
+        met.pt_unc_v_d.push_back(  srcMET.shiftedPt(var, pat::MET::Type1) );
+        met.phi_unc_v_u.push_back( srcMET.shiftedPhi(var, pat::MET::Type1) ); 
+        met.phi_unc_v_d.push_back( srcMET.shiftedPhi(var, pat::MET::Type1) ); 
+      }
+  }
 
   // Fill the output tree
   outTree->Fill();
