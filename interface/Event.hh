@@ -39,6 +39,9 @@ namespace grinder{
     std::vector<Float_t> JEC_unc_v_u, JEC_unc_v_d;
     Float_t resolution, sf, sf_u, sf_d, getJet_pt;
     Bool_t isTight;
+
+    Float_t pfDeepCSVJetTags_probb, pfDeepCSVJetTags_probbb, pfDeepCSVJetTags_probc, pfDeepCSVJetTags_probudsg;
+    Float_t pfDeepFlavourJetTags_probb, pfDeepFlavourJetTags_probbb, pfDeepFlavourJetTags_problepb, pfDeepFlavourJetTags_probc, pfDeepFlavourJetTags_probuds, pfDeepFlavourJetTags_probg;
   };
   // ========================================================= MET ========================================================= 
   class MET{
@@ -57,8 +60,23 @@ namespace grinder{
     UShort_t bunchCrossing;
 
     Float_t angular_pt_density;
+    Float_t weight, originalXWGTUP;
+    std::vector<Float_t> weights;
   };
-
+  // ========================================================= Event Meta ========================================================= 
+  class EventMetadata {
+    public: 
+    
+  };
 };
+
+
+
+
+
+
+
+
+
 
 #endif

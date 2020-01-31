@@ -18,7 +18,7 @@
 #include <DataFormats/PatCandidates/interface/Electron.h> 
 #include <DataFormats/PatCandidates/interface/Jet.h> 
 #include <DataFormats/PatCandidates/interface/MET.h> 
-#include "DataFormats/METReco/interface/GenMET.h"
+#include <DataFormats/METReco/interface/GenMET.h>
 
 // electrons / photons
 #include "RecoEgamma/EgammaTools/interface/EffectiveAreas.h"
@@ -28,13 +28,18 @@
 #include "DataFormats/MuonReco/interface/MuonSelectors.h"
 
 // jets
+#include <DataFormats/JetReco/interface/GenJet.h>
 #include <FWCore/Framework/interface/ESHandle.h>
 #include <FWCore/Framework/interface/EventSetup.h>
 #include <CondFormats/JetMETObjects/interface/JetCorrectionUncertainty.h>
 #include <CondFormats/JetMETObjects/interface/JetCorrectorParameters.h>
 #include <JetMETCorrections/Objects/interface/JetCorrectionsRecord.h>
 #include <JetMETCorrections/Modules/interface/JetResolution.h>
-#include <DataFormats/JetReco/interface/GenJet.h>
+
+// weights
+#include "SimDataFormats/GeneratorProducts/interface/GenEventInfoProduct.h"
+#include "SimDataFormats/GeneratorProducts/interface/LHEEventProduct.h"
+#include "SimDataFormats/PileupSummaryInfo/interface/PileupSummaryInfo.h"
 
 // vertexes
 #include <DataFormats/VertexReco/interface/VertexFwd.h>   // reco::VertexCollection
@@ -49,7 +54,7 @@
 
 // Grinder
 #include "Analysis/GRINDER/interface/Event.hh"
-#include "Analysis/GRINDER/plugins/Grinder_extensions.cc"
+#include "Analysis/GRINDER/interface/Grinder_extensions.hh"
 using namespace grinder;
 
 class Grinder : public edm::one::EDAnalyzer<edm::one::SharedResources>  {
@@ -113,7 +118,6 @@ class Grinder : public edm::one::EDAnalyzer<edm::one::SharedResources>  {
       // Electrons
       std::string electron_loose_id_token, electron_medium_id_token, electron_tight_id_token;
       const reco::GsfElectron::PflowIsolationVariables * pfIso;
-
       // Jets
       double jet_pt_cut;
       // ID
@@ -187,8 +191,15 @@ Grinder::Grinder(const edm::ParameterSet& iConfig) :
   // https://twiki.cern.ch/twiki/bin/view/CMS/JECUncertaintySources#Recommendation_for_analysis
   jet_type_label = iConfig.getParameter<std::string>("jet_type_label");
   if(era_label == "2016"){
-    jecUnc_names = {"Total", "SubTotalMC", "SubTotalAbsolute", "SubTotalScale", "SubTotalPt", "SubTotalRelative", "SubTotalPileUp"};
-  } // FIXME other years
+    jecUnc_names = {"Total", "SubTotalMC", "SubTotalAbsolute", "SubTotalScale", "SubTotalPt", "SubTotalRelative", "SubTotalPileUp", "FlavorQCD", "TimePtEta"};
+  }
+  if(era_label == "2017"){
+    jecUnc_names = {"Total", "SubTotalMC", "SubTotalAbsolute", "SubTotalScale", "SubTotalPt", "SubTotalRelative", "SubTotalPileUp", "FlavorQCD", "TimePtEta"};
+  }
+  if(era_label == "2018"){
+    jecUnc_names = {"Total", "SubTotalMC", "SubTotalAbsolute", "SubTotalScale", "SubTotalPt", "SubTotalRelative", "SubTotalPileUp", "FlavorQCD", "TimePtEta"};
+  }
+
   for(auto item : jecUnc_names){
     jet.JEC_unc_v_u.push_back( 0.f );
     jet.JEC_unc_v_d.push_back( 0.f );
@@ -219,6 +230,17 @@ Grinder::~Grinder(){}
 //
 
 // ------------ method called for each event  ------------
+/*
+  TODO
+  - trigger
+  - event weights
+  - JEC correction
+  - propogate JEC correction into MET
+  V b-tagging
+  - pile-up information about vertexesreweighting of the MC
+*/
+
+
 void Grinder::analyze(const edm::Event& iEvent, const edm::EventSetup& iSetup){
   using namespace edm;
 
@@ -230,6 +252,27 @@ void Grinder::analyze(const edm::Event& iEvent, const edm::EventSetup& iSetup){
 
   iEvent.getByToken(rhoToken, rho);
   event.angular_pt_density = (*rho);
+
+  // weights
+  // https://twiki.cern.ch/twiki/bin/viewauth/CMS/LHEReaderCMSSW#Retrieving_the_weights
+  if(not iEvent.isRealData()){
+    edm::Handle<GenEventInfoProduct> genEvtInfo; 
+    iEvent.getByLabel( "generator", genEvtInfo );
+
+    // https://twiki.cern.ch/twiki/bin/view/CMSPublic/SWGuideDataFormatGeneratorInterface?redirectedfrom=CMS.SWGuideDataFormatGeneratorInterface
+    // use only one weight
+    // const std::vector<double> & evtWeights = genEvtInfo->weights();
+    event.weight = genEvtInfo->weight();
+
+    // fixme if it is from external LHE generator
+    edm::Handle<LHEEventProduct> LHEInfo ;
+    iEvent.getByLabel( "externalLHEProducer", LHEInfo ) ;
+    
+    event.originalXWGTUP = LHEInfo->originalXWGTUP();
+    const std::vector<gen::WeightsInfo> & lhe_weights = LHEInfo->weights();
+    for(unsigned int i=0, N_weights = lhe_weights.size(); i < N_weights; i++)
+      event.weights.push_back( lhe_weights[i].wgt );
+  }
 
   // Read prescales
 /*
@@ -385,12 +428,12 @@ void Grinder::analyze(const edm::Event& iEvent, const edm::EventSetup& iSetup){
     muons.emplace_back( muon );
   }
 
-  // Gen jets TODO
+  // Gen jets
   edm::Handle<edm::View<reco::GenJet>> genJets;
   if(not iEvent.isRealData())
     iEvent.getByToken(genJetToken, genJets);
 
-  // iterate over AK4 PF CHS jets TODO
+  // iterate over AK4 PF CHS jets
   edm::Handle<edm::View<pat::Jet>> srcJets;
   iEvent.getByToken(jetToken, srcJets);
   for (unsigned i = 0; i < srcJets->size(); ++i){
@@ -399,42 +442,6 @@ void Grinder::analyze(const edm::Event& iEvent, const edm::EventSetup& iSetup){
     // RAW P4 vector 
     // https://twiki.cern.ch/twiki/bin/view/CMS/TopJME#Jets
     reco::Candidate::LorentzVector const &rawP4 = j.correctedP4("Uncorrected");
-    jet.pt  = rawP4.pt();
-    jet.eta = rawP4.eta();
-    jet.phi = rawP4.phi();
-    jet.m   = rawP4.mass();
-
-    jet.charge = j.jetCharge();
-    jet.area   = j.jetArea();
-
-    // JetID
-    // https://twiki.cern.ch/twiki/bin/view/CMS/JetID
-    NHF  = j.neutralHadronEnergyFraction();
-    NEMF = j.neutralEmEnergyFraction();
-    CHF  = j.chargedHadronEnergyFraction();
-    MUF  = j.muonEnergyFraction();
-    CEMF = j.chargedEmEnergyFraction();
-    NumConst = j.chargedMultiplicity()+j.neutralMultiplicity();
-    NumNeutralParticles = j.neutralMultiplicity();
-    CHM      = j.chargedMultiplicity();
-
-    double eta = rawP4.eta();
-    if(era_label == "2016"){
-      if      ( TMath::Abs( eta ) < 2.7 ) jet.isTight = (NHF<0.90 && NEMF<0.90 && NumConst>1) && ((abs(eta)<=2.4 && CHF>0 && CHM>0 && CEMF<0.99) || abs(eta)>2.4) && abs(eta)<=2.7;
-      else if ( TMath::Abs( eta ) < 3.0 ) jet.isTight = (NHF<0.98 && NEMF>0.01 && NumNeutralParticles>2 && abs(eta)>2.7 && abs(eta)<=3.0 );
-      else                                jet.isTight = (NEMF<0.90 && NumNeutralParticles>10 && abs(eta)>3.0 );
-    }
-    if(era_label == "2017"){
-      if      ( TMath::Abs( eta ) < 2.7 ) jet.isTight = (NHF<0.90 && NEMF<0.90 && NumConst>1) && ((abs(eta)<=2.4 && CHF>0 && CHM>0) || abs(eta)>2.4) && abs(eta)<=2.7;
-      else if ( TMath::Abs( eta ) < 3.0 ) jet.isTight = (NEMF>0.02 && NEMF<0.99 && NumNeutralParticles>2 && abs(eta)>2.7);
-      else                                jet.isTight = (NEMF<0.90 && NumNeutralParticles>10);
-    }
-    else if(era_label == "2018"){
-      if      ( TMath::Abs( eta ) < 2.6 ) jet.isTight = (abs(eta)<=2.6 && CEMF<0.8 && CHM>0 && CHF>0 && NumConst>1 && NEMF<0.9 && MUF <0.8 && NHF < 0.9 ); 
-      else if ( TMath::Abs( eta ) < 2.7 ) jet.isTight = (abs(eta)>2.6 && abs(eta)<=2.7 && CEMF<0.8 && CHM>0 && NEMF<0.99 && MUF <0.8 && NHF < 0.9 ); 
-      else if ( TMath::Abs( eta ) < 3.0 ) jet.isTight = (NEMF>0.02 && NEMF<0.99 && NumNeutralParticles>2 && abs(eta)>2.7 && abs(eta)<=3.0 );
-      else                                jet.isTight = (NEMF<0.90 && NHF>0.2 && NumNeutralParticles>10 && abs(eta)>3.0 );
-    }
 
     // FIXME how to correct jets ???
 
@@ -482,6 +489,70 @@ void Grinder::analyze(const edm::Event& iEvent, const edm::EventSetup& iSetup){
     double jet_maxPt = j.pt() * ( 1. + JEC_uncertanty + JER_uncertanty );
     std::cout << JEC_uncertanty << " " << JER_uncertanty << std::endl;
     if( jet_maxPt < jet_pt_cut and rawP4.pt() > jet_pt_cut ) continue;
+
+    jet.pt  = rawP4.pt();
+    jet.eta = rawP4.eta();
+    jet.phi = rawP4.phi();
+    jet.m   = rawP4.mass();
+
+    jet.charge = j.jetCharge();
+    jet.area   = j.jetArea();
+
+    // JetID
+    // https://twiki.cern.ch/twiki/bin/view/CMS/JetID
+    NHF  = j.neutralHadronEnergyFraction();
+    NEMF = j.neutralEmEnergyFraction();
+    CHF  = j.chargedHadronEnergyFraction();
+    MUF  = j.muonEnergyFraction();
+    CEMF = j.chargedEmEnergyFraction();
+    NumConst = j.chargedMultiplicity()+j.neutralMultiplicity();
+    NumNeutralParticles = j.neutralMultiplicity();
+    CHM  = j.chargedMultiplicity();
+
+    double eta = rawP4.eta();
+    if(era_label == "2016"){
+      if      ( TMath::Abs( eta ) < 2.7 ) jet.isTight = (NHF<0.90 && NEMF<0.90 && NumConst>1) && ((abs(eta)<=2.4 && CHF>0 && CHM>0 && CEMF<0.99) || abs(eta)>2.4) && abs(eta)<=2.7;
+      else if ( TMath::Abs( eta ) < 3.0 ) jet.isTight = (NHF<0.98 && NEMF>0.01 && NumNeutralParticles>2 && abs(eta)>2.7 && abs(eta)<=3.0 );
+      else                                jet.isTight = (NEMF<0.90 && NumNeutralParticles>10 && abs(eta)>3.0 );
+    }
+    else if(era_label == "2017"){
+      if      ( TMath::Abs( eta ) < 2.7 ) jet.isTight = (NHF<0.90 && NEMF<0.90 && NumConst>1) && ((abs(eta)<=2.4 && CHF>0 && CHM>0) || abs(eta)>2.4) && abs(eta)<=2.7;
+      else if ( TMath::Abs( eta ) < 3.0 ) jet.isTight = (NEMF>0.02 && NEMF<0.99 && NumNeutralParticles>2 && abs(eta)>2.7);
+      else                                jet.isTight = (NEMF<0.90 && NumNeutralParticles>10);
+    }
+    else if(era_label == "2018"){
+      if      ( TMath::Abs( eta ) < 2.6 ) jet.isTight = (abs(eta)<=2.6 && CEMF<0.8 && CHM>0 && CHF>0 && NumConst>1 && NEMF<0.9 && MUF <0.8 && NHF < 0.9 ); 
+      else if ( TMath::Abs( eta ) < 2.7 ) jet.isTight = (abs(eta)>2.6 && abs(eta)<=2.7 && CEMF<0.8 && CHM>0 && NEMF<0.99 && MUF <0.8 && NHF < 0.9 ); 
+      else if ( TMath::Abs( eta ) < 3.0 ) jet.isTight = (NEMF>0.02 && NEMF<0.99 && NumNeutralParticles>2 && abs(eta)>2.7 && abs(eta)<=3.0 );
+      else                                jet.isTight = (NEMF<0.90 && NHF>0.2 && NumNeutralParticles>10 && abs(eta)>3.0 );
+    }
+
+    // b-tagging
+    // https://twiki.cern.ch/twiki/bin/view/CMSPublic/WorkBookMiniAOD2017#B_tagging
+    // https://twiki.cern.ch/twiki/bin/viewauth/CMS/BtagRecommendation102X
+    // DeepCSV
+    jet.pfDeepCSVJetTags_probb    = j.bDiscriminator("pfDeepCSVJetTags:probb");
+    jet.pfDeepCSVJetTags_probbb   = j.bDiscriminator("pfDeepCSVJetTags:probbb");
+    jet.pfDeepCSVJetTags_probc    = j.bDiscriminator("pfDeepCSVJetTags_probc");
+    jet.pfDeepCSVJetTags_probudsg = j.bDiscriminator("pfDeepCSVJetTags:probudsg");
+
+    // DeepJet
+    jet.pfDeepFlavourJetTags_probb    = j.bDiscriminator("pfDeepFlavourJetTags_probb");
+    jet.pfDeepFlavourJetTags_probbb   = j.bDiscriminator("pfDeepFlavourJetTags_probbb");
+    jet.pfDeepFlavourJetTags_problepb = j.bDiscriminator("pfDeepFlavourJetTags_problepb");
+    jet.pfDeepFlavourJetTags_probc    = j.bDiscriminator("pfDeepFlavourJetTags:probc");
+    jet.pfDeepFlavourJetTags_probuds  = j.bDiscriminator("pfDeepFlavourJetTags:probuds");
+    jet.pfDeepFlavourJetTags_probg    = j.bDiscriminator("pfDeepFlavourJetTags:probg");
+
+    // b-tagging SF
+    // https://twiki.cern.ch/twiki/bin/viewauth/CMS/BtagRecommendation102X
+    // https://twiki.cern.ch/twiki/bin/view/CMS/BTagCalibration#Standalone
+    // will use standalone
+
+    // b-tagging uncertanties
+    // https://twiki.cern.ch/twiki/bin/viewauth/CMS/BTagSFMethods
+    // will use standalone
+
     jets.emplace_back( jet );
   }
 

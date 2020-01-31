@@ -1,9 +1,11 @@
 <lcgdict>
     <class  name = "grinder::Event" />
+    <class  name = "grinder::EventMetadata"/>
     <class  name = "grinder::Jet" />
     <class  name = "grinder::Muon" />
     <class  name = "grinder::Photon" />
     <class  name = "grinder::Electron" />
+    <class  name = "grinder::MET" />
 
     <class  name = "std::vector<grinder::Jet>" />
     <class  name = "std::vector<grinder::Muon>" />
