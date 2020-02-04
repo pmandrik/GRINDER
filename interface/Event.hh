@@ -62,6 +62,7 @@ namespace grinder{
     Float_t angular_pt_density;
     Float_t weight, originalXWGTUP;
     std::vector<Float_t> weights;
+    Int_t DicedMCNumInteractions, TrueMCNumInteractions;
   };
   // ========================================================= Event Meta ========================================================= 
   class EventMetadata {

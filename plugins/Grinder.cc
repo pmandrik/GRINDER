@@ -45,6 +45,10 @@
 #include <DataFormats/VertexReco/interface/VertexFwd.h>   // reco::VertexCollection
 #include <DataFormats/VertexReco/interface/Vertex.h>      // reco::Vertex
 
+// pile-up
+#include "SimDataFormats/PileupSummaryInfo/interface/PileupSummaryInfo.h" 
+
+// other
 #include <FWCore/Utilities/interface/EDMException.h>      // edm::Exception
 
 #include <FWCore/ServiceRegistry/interface/Service.h>     // TFileService
@@ -260,11 +264,11 @@ void Grinder::analyze(const edm::Event& iEvent, const edm::EventSetup& iSetup){
     iEvent.getByLabel( "generator", genEvtInfo );
 
     // https://twiki.cern.ch/twiki/bin/view/CMSPublic/SWGuideDataFormatGeneratorInterface?redirectedfrom=CMS.SWGuideDataFormatGeneratorInterface
-    // use only one weight
+    // use only one weight 
     // const std::vector<double> & evtWeights = genEvtInfo->weights();
     event.weight = genEvtInfo->weight();
 
-    // fixme if it is from external LHE generator
+    // FIXME if it is from external LHE generator
     edm::Handle<LHEEventProduct> LHEInfo ;
     iEvent.getByLabel( "externalLHEProducer", LHEInfo ) ;
     
@@ -294,7 +298,20 @@ void Grinder::analyze(const edm::Event& iEvent, const edm::EventSetup& iSetup){
   }
   const reco::Vertex PrimaryVertex = vertices->front();
 
-  // iterate over photons
+  // Pile-Up Info
+  // https://twiki.cern.ch/twiki/bin/view/CMS/Pileup_MC_Information
+  if(not iEvent.isRealData()){
+    std::vector<PileupSummaryInfo>::const_iterator PVI;
+    event.NumMCInteractions = -404;
+    for(PVI = PupInfo->begin(); PVI != PupInfo->end(); ++PVI) {
+      if( PVI->getBunchCrossing() != 0 ) continue;
+      event.DicedMCNumInteractions = PVI->getPU_NumInteractions();
+      event.TrueMCNumInteractions  = PVI->getTrueNumInteractions();
+      break;
+    }
+  }
+
+  // Iterate over photons
   edm::Handle<edm::View<pat::Photon>> srcPhotons;
   iEvent.getByToken(photonToken, srcPhotons);
   for (unsigned i = 0; i < srcPhotons->size(); ++i){
