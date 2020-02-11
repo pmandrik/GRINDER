@@ -49,6 +49,8 @@ namespace grinder{
     Float_t pt, eta, phi, gen_pt, gen_phi, significance;
     std::vector<Float_t> pt_unc_v_u, pt_unc_v_d;
     std::vector<Float_t> phi_unc_v_u, phi_unc_v_d;
+    Bool_t Flag_goodVertices, Flag_globalSuperTightHalo2016Filter, Flag_HBHENoiseFilter, Flag_HBHENoiseIsoFilter;
+    Bool_t Flag_EcalDeadCellTriggerPrimitiveFilter, Flag_BadPFMuonFilter, Flag_BadChargedCandidateFilter, Flag_eeBadScFilter, Flag_ecalBadCalibReducedMINIAODFilter;
   };
 
   // ========================================================= Event ========================================================= 
@@ -59,7 +61,7 @@ namespace grinder{
     ULong64_t event;
     UShort_t bunchCrossing;
 
-    Float_t angular_pt_density;
+    Float_t angular_pt_density, angular_pt_density_central;
     Float_t weight, originalXWGTUP;
     std::vector<Float_t> weights;
     Int_t DicedMCNumInteractions, TrueMCNumInteractions;
@@ -80,4 +82,20 @@ namespace grinder{
 
 
 
+
+
 #endif
+
+
+
+
+
+
+
+
+
+
+
+
+
+

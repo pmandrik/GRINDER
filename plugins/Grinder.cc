@@ -48,6 +48,12 @@
 // pile-up
 #include "SimDataFormats/PileupSummaryInfo/interface/PileupSummaryInfo.h" 
 
+// trigger
+#include "FWCore/Common/interface/TriggerNames.h"
+#include "DataFormats/Common/interface/TriggerResults.h"
+#include "DataFormats/PatCandidates/interface/TriggerObjectStandAlone.h"
+#include "DataFormats/PatCandidates/interface/PackedTriggerPrescales.h"
+
 // other
 #include <FWCore/Utilities/interface/EDMException.h>      // edm::Exception
 
@@ -84,8 +90,12 @@ class Grinder : public edm::one::EDAnalyzer<edm::one::SharedResources>  {
       edm::EDGetTokenT<edm::View<pat::MET>>       metToken;
       edm::EDGetTokenT<edm::View<pat::Tau>>       tauToken;
       edm::EDGetTokenT<edm::View<reco::GenJet>>   genJetToken;
+      edm::EDGetTokenT<edm::TriggerResults>         triggerResultsToken;
+      edm::EDGetTokenT<pat::PackedTriggerPrescales> triggerPrescalesToken;
+      edm::EDGetTokenT<edm::TriggerResults>         metFilterResultsToken;
 
       edm::EDGetTokenT<reco::VertexCollection> primaryVerticesToken;
+      edm::EDGetTokenT<std::vector<PileupSummaryInfo>> puSummaryToken;
 
       TTree *outTree;
       grinder::Event  event;
@@ -116,8 +126,8 @@ class Grinder : public edm::one::EDAnalyzer<edm::one::SharedResources>  {
       EffectiveAreas effAreaNeuHadrons;
       EffectiveAreas effAreaPhotons;
       float superCluster_eta;
-      edm::Handle< double > rho;
-      edm::EDGetTokenT<double> rhoToken;
+      edm::Handle< double > rho, rhoCentral;
+      edm::EDGetTokenT<double> rhoToken, rhoCentralToken;
 
       // Electrons
       std::string electron_loose_id_token, electron_medium_id_token, electron_tight_id_token;
@@ -138,6 +148,8 @@ class Grinder : public edm::one::EDAnalyzer<edm::one::SharedResources>  {
       JME::JetResolution jerResolution;
       JME::JetResolutionScaleFactor jerScaleFactor;
       JME::JetParameters jerResolution_parameters, jerScaleFactor_parameters;
+      // MET
+      edm::EDGetTokenT< bool > ecalBadCalibFilterUpdate_token ;
 };
 
 //
@@ -160,22 +172,23 @@ Grinder::Grinder(const edm::ParameterSet& iConfig) :
   usesResource("TFileService");
   era_label     = iConfig.getParameter<std::string>("era_label");
 
-  muonToken     = consumes<edm::View<pat::Muon>>(iConfig.getParameter<edm::InputTag>("muons_token"));
-  photonToken   = consumes<edm::View<pat::Photon>>(iConfig.getParameter<edm::InputTag>("photons_token"));
-  jetToken      = consumes<edm::View<pat::Jet>>(iConfig.getParameter<edm::InputTag>("jets_token"));
-  metToken      = consumes<edm::View<pat::MET>>(iConfig.getParameter<edm::InputTag>("mets_token"));
   electronToken = consumes<edm::View<pat::Electron>>(iConfig.getParameter<edm::InputTag>("electrons_token"));
   tauToken      = consumes<edm::View<pat::Tau>>(iConfig.getParameter<edm::InputTag>("taus_token"));
   rhoToken      = consumes<double>(iConfig.getParameter<edm::InputTag>("rho_token"));
+  rhoCentralToken = consumes<double>(iConfig.getParameter<edm::InputTag>("rho_central_token"));
   genJetToken   = consumes<edm::View<reco::GenJet>>(iConfig.getParameter<edm::InputTag>("genjets_token"));
-
   primaryVerticesToken = consumes<reco::VertexCollection>(iConfig.getParameter<edm::InputTag>("primaryVertex_token"));
+  puSummaryToken       = consumes<std::vector<PileupSummaryInfo>>(iConfig.getParameter<edm::InputTag>("puSummaryToken_token"));
+  triggerResultsToken   = consumes<edm::TriggerResults>(iConfig.getParameter<edm::InputTag>("triggerResults_token"));
+  triggerPrescalesToken = consumes<pat::PackedTriggerPrescales>(iConfig.getParameter<edm::InputTag>("triggerPrescales_token"));
+
   //FIXME hltPrescalesToken = consumes<pat::PackedTriggerPrescales>(cfg.getParameter<edm::InputTag>("hltPrescales"));
   //FIXME l1tPrescalesToken = consumes<pat::PackedTriggerPrescales>(cfg.getParameter<edm::InputTag>("l1tPrescales"));
 
   outTree = fileService->make<TTree>("Events", "Events");
 
   // read Photons options
+  photonToken   = consumes<edm::View<pat::Photon>>(iConfig.getParameter<edm::InputTag>("photons_token"));
   photon_loose_id_token  = iConfig.getParameter<std::string>("photon_loose_id_token");
   photon_medium_id_token = iConfig.getParameter<std::string>("photon_medium_id_token");
   photon_tight_id_token  = iConfig.getParameter<std::string>("photon_tight_id_token");
@@ -189,8 +202,10 @@ Grinder::Grinder(const edm::ParameterSet& iConfig) :
   electron_tight_id_token  = iConfig.getParameter<std::string>("electron_tight_id_token");
 
   // read Muon options
+  muonToken     = consumes<edm::View<pat::Muon>>(iConfig.getParameter<edm::InputTag>("muons_token"));
 
   // read Jet options
+  jetToken      = consumes<edm::View<pat::Jet>>(iConfig.getParameter<edm::InputTag>("jets_token"));
   // jecUnc = new JetCorrectionUncertainty( iConfig.getParameter<std::string>("jet_JEC_Uncertainty_datafile_token") );
   // https://twiki.cern.ch/twiki/bin/view/CMS/JECUncertaintySources#Recommendation_for_analysis
   jet_type_label = iConfig.getParameter<std::string>("jet_type_label");
@@ -209,6 +224,11 @@ Grinder::Grinder(const edm::ParameterSet& iConfig) :
     jet.JEC_unc_v_d.push_back( 0.f );
   }
   jet_pt_cut = 1.; // FIXME
+
+  // read met options
+  metToken              = consumes<edm::View<pat::MET>>(iConfig.getParameter<edm::InputTag>("mets_token"));
+  metFilterResultsToken = consumes<edm::TriggerResults>(iConfig.getParameter<edm::InputTag>("metFilterResults_token"));
+  ecalBadCalibFilterUpdate_token = consumes< bool >(edm::InputTag("ecalBadCalibReducedMINIAODFilter"));
 
   // setup output data
   event_ptr     = &event;
@@ -241,14 +261,14 @@ Grinder::~Grinder(){}
   - JEC correction
   - propogate JEC correction into MET
   V b-tagging
-  - pile-up information about vertexesreweighting of the MC
+  V pile-up information about vertexesreweighting of the MC
 */
 
 
 void Grinder::analyze(const edm::Event& iEvent, const edm::EventSetup& iSetup){
   using namespace edm;
 
-  // Set Event Info
+  // Set Event Info ========================================================================================================
   event.run   = iEvent.id().run();
   event.lumi  = iEvent.luminosityBlock();
   event.event = iEvent.id().event();
@@ -257,7 +277,10 @@ void Grinder::analyze(const edm::Event& iEvent, const edm::EventSetup& iSetup){
   iEvent.getByToken(rhoToken, rho);
   event.angular_pt_density = (*rho);
 
-  // weights
+  iEvent.getByToken(rhoCentralToken, rhoCentral);
+  event.angular_pt_density_central = (*rhoCentral);
+
+  // weights ========================================================================================================
   // https://twiki.cern.ch/twiki/bin/viewauth/CMS/LHEReaderCMSSW#Retrieving_the_weights
   if(not iEvent.isRealData()){
     edm::Handle<GenEventInfoProduct> genEvtInfo; 
@@ -278,15 +301,26 @@ void Grinder::analyze(const edm::Event& iEvent, const edm::EventSetup& iSetup){
       event.weights.push_back( lhe_weights[i].wgt );
   }
 
-  // Read prescales
+  // Read prescales FIXME hope to optain triggers withou prescales ========================================================================================================
 /*
   edm::Handle<pat::PackedTriggerPrescales> hltPrescales;
   edm::Handle<pat::PackedTriggerPrescales> l1tPrescales;
   iEvent.getByToken(hltPrescalesToken, hltPrescales);
   iEvent.getByToken(l1tPrescalesToken, l1tPrescales);
-  
   event.prescale = hltPrescales->getPrescaleForIndex(t.second.index) * l1tPrescales->getPrescaleForIndex(t.second.index);
 */
+  edm::Handle<edm::TriggerResults> triggerResults;
+  edm::Handle<pat::PackedTriggerPrescales> triggerPrescales;
+
+  iEvent.getByToken(triggerResultsToken, triggerResults);
+  iEvent.getByToken(triggerPrescalesToken, triggerPrescales);
+  const edm::TriggerNames &names = iEvent.triggerNames(*triggerResults);
+
+  /*
+  for (unsigned int i = 0, n = triggerResults->size(); i < n; ++i) {
+    std::cout << "Trigger " << names.triggerName(i) << ", prescale " << triggerPrescales->getPrescaleForIndex(i) << ": " << (triggerResults->accept(i) ? "PASS" : "fail (or not run)") << std::endl;
+  }
+  */
 
   // Read primary vertices collection // FIXME
   edm::Handle<reco::VertexCollection> vertices;
@@ -298,12 +332,16 @@ void Grinder::analyze(const edm::Event& iEvent, const edm::EventSetup& iSetup){
   }
   const reco::Vertex PrimaryVertex = vertices->front();
 
-  // Pile-Up Info
+  // Pile-Up Info ========================================================================================================
   // https://twiki.cern.ch/twiki/bin/view/CMS/Pileup_MC_Information
+  // uncertanties calc at the next step https://twiki.cern.ch/twiki/bin/view/CMS/PileupSystematicErrors
   if(not iEvent.isRealData()){
+    edm::Handle<std::vector<PileupSummaryInfo> > puSummary;
+    iEvent.getByToken(puSummaryToken, puSummary);
+
     std::vector<PileupSummaryInfo>::const_iterator PVI;
-    event.NumMCInteractions = -404;
-    for(PVI = PupInfo->begin(); PVI != PupInfo->end(); ++PVI) {
+    event.TrueMCNumInteractions = -404;
+    for(PVI = puSummary->begin(); PVI != puSummary->end(); ++PVI) {
       if( PVI->getBunchCrossing() != 0 ) continue;
       event.DicedMCNumInteractions = PVI->getPU_NumInteractions();
       event.TrueMCNumInteractions  = PVI->getTrueNumInteractions();
@@ -311,7 +349,7 @@ void Grinder::analyze(const edm::Event& iEvent, const edm::EventSetup& iSetup){
     }
   }
 
-  // Iterate over photons
+  // Iterate over photons ========================================================================================================
   edm::Handle<edm::View<pat::Photon>> srcPhotons;
   iEvent.getByToken(photonToken, srcPhotons);
   for (unsigned i = 0; i < srcPhotons->size(); ++i){
@@ -367,7 +405,7 @@ void Grinder::analyze(const edm::Event& iEvent, const edm::EventSetup& iSetup){
     photons.emplace_back( photon );
   }
 
-  // iterate over electrons
+  // iterate over electrons ========================================================================================================
   edm::Handle<edm::View<pat::Electron>> srcElectrons;
   iEvent.getByToken(electronToken, srcElectrons);
   for (unsigned i = 0; i < srcElectrons->size(); ++i){
@@ -417,7 +455,7 @@ void Grinder::analyze(const edm::Event& iEvent, const edm::EventSetup& iSetup){
     electrons.emplace_back( electron );
   }
 
-  // iterate over muons
+  // iterate over muons ========================================================================================================
   edm::Handle<edm::View<pat::Muon>> srcMuons;
   iEvent.getByToken(muonToken, srcMuons);
 
@@ -445,7 +483,7 @@ void Grinder::analyze(const edm::Event& iEvent, const edm::EventSetup& iSetup){
     muons.emplace_back( muon );
   }
 
-  // Gen jets
+  // Gen jets ========================================================================================================
   edm::Handle<edm::View<reco::GenJet>> genJets;
   if(not iEvent.isRealData())
     iEvent.getByToken(genJetToken, genJets);
@@ -573,7 +611,7 @@ void Grinder::analyze(const edm::Event& iEvent, const edm::EventSetup& iSetup){
     jets.emplace_back( jet );
   }
 
-  // iterate over MET
+  // iterate over MET ========================================================================================================
   Handle<View<pat::MET>> metHandle;
   iEvent.getByToken(metToken, metHandle);
   pat::MET const & srcMET = metHandle->front();
@@ -595,6 +633,45 @@ void Grinder::analyze(const edm::Event& iEvent, const edm::EventSetup& iSetup){
         met.phi_unc_v_d.push_back( srcMET.shiftedPhi(var, pat::MET::Type1) ); 
       }
   }
+
+  // store the MET filter results
+  // "if your analysis is sensitive to the MET tails, we strongly recommend you to apply all recommended MET filters"
+  // https://twiki.cern.ch/twiki/bin/view/CMS/MissingET
+  // https://twiki.cern.ch/twiki/bin/view/CMSPublic/WorkBookMiniAOD2016#ETmiss_filters
+  // https://twiki.cern.ch/twiki/bin/viewauth/CMS/MissingETOptionalFiltersRun2#Analysis_Recommendations_for_ana
+  edm::Handle<edm::TriggerResults> metFilterResults;
+  iEvent.getByToken(metFilterResultsToken, metFilterResults);
+  const edm::TriggerNames &filter_names = iEvent.triggerNames(*metFilterResults);
+
+  met.Flag_goodVertices                        =  false ;
+  met.Flag_globalSuperTightHalo2016Filter      =  false ;
+  met.Flag_HBHENoiseFilter                     =  false ;
+  met.Flag_HBHENoiseIsoFilter                  =  false ;
+  met.Flag_EcalDeadCellTriggerPrimitiveFilter  =  false ;
+  met.Flag_BadPFMuonFilter                     =  false ;
+  met.Flag_BadChargedCandidateFilter           =  false ;
+  met.Flag_eeBadScFilter                       =  false ;
+  met.Flag_ecalBadCalibReducedMINIAODFilter    =  false ;
+  for (unsigned int i = 0, n = triggerResults->size(); i < n; ++i) {
+    if( not triggerResults->accept(i) ) continue;
+         if( filter_names.triggerName(i) == "Flag_goodVertices" )                        met.Flag_goodVertices                       = true ; 
+    else if( filter_names.triggerName(i) == "Flag_globalSuperTightHalo2016Filter" )      met.Flag_globalSuperTightHalo2016Filter     = true ;
+    else if( filter_names.triggerName(i) == "Flag_HBHENoiseFilter" )                     met.Flag_HBHENoiseFilter                    = true ;
+    else if( filter_names.triggerName(i) == "Flag_HBHENoiseIsoFilter" )                  met.Flag_HBHENoiseIsoFilter                 = true ;
+    else if( filter_names.triggerName(i) == "Flag_EcalDeadCellTriggerPrimitiveFilter" )  met.Flag_EcalDeadCellTriggerPrimitiveFilter = true ; 
+    else if( filter_names.triggerName(i) == "Flag_BadPFMuonFilter" )                     met.Flag_BadPFMuonFilter                    = true ; 
+    else if( filter_names.triggerName(i) == "Flag_BadChargedCandidateFilter" )           met.Flag_BadChargedCandidateFilter          = true ; 
+    else if( filter_names.triggerName(i) == "Flag_eeBadScFilter" )                       met.Flag_eeBadScFilter                      = true ;
+    else if( filter_names.triggerName(i) == "Flag_ecalBadCalibReducedMINIAODFilter" )    met.Flag_ecalBadCalibReducedMINIAODFilter   = true ;    // FIXME need to re-run filter
+  }
+
+  // re-run MET filter for "Flag_ecalBadCalibReducedMINIAODFilter"
+  edm::Handle< bool > passecalBadCalibFilterUpdate ;
+  iEvent.getByToken(ecalBadCalibFilterUpdate_token, passecalBadCalibFilterUpdate);
+  met.Flag_ecalBadCalibReducedMINIAODFilter = (*passecalBadCalibFilterUpdate );
+
+  // Iterate over GenParticle  ========================================================================================================
+  // TODO skipped for this analyses
 
   // Fill the output tree
   outTree->Fill();

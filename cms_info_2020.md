@@ -16,6 +16,8 @@ git cms-init
 git cms-merge-topic cms-egamma:PhotonIDValueMapSpeedup1029
 git cms-merge-topic cms-egamma:EgammaPostRecoTools
 scram b -j 8
+# extra packages for MET filters from https://twiki.cern.ch/twiki/bin/viewauth/CMS/MissingETOptionalFiltersRun2#How_to_run_ecal_BadCalibReducedM
+git cms-addpkg RecoMET/METFilters
 # GRIDNER packages
 mkdir -p Analysis; cd Analysis;
 git clone git@github.com:pmandrik/GRINDER.git GRINDER; cd GRINDER

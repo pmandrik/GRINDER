@@ -62,6 +62,20 @@ if YEAR_ERA == "2016":
 if YEAR_ERA == "2017":
   pass
 
+### MET options
+# set-up filter https://twiki.cern.ch/twiki/bin/viewauth/CMS/MissingETOptionalFiltersRun2#How_to_run_ecal_BadCalibReducedM
+process.load('RecoMET.METFilters.ecalBadCalibFilter_cfi')
+baddetEcallist = cms.vuint32( [872439604,872422825,872420274,872423218,872423215,872416066,872435036,872439336, 872420273,872436907,872420147,872439731,872436657,872420397,872439732,872439339, 872439603,872422436,872439861,872437051,872437052,872420649,872421950,872437185, 872422564,872421566,872421695,872421955,872421567,872437184,872421951,872421694, 872437056,872437057,872437313,872438182,872438951,872439990,872439864,872439609, 872437181,872437182,872437053,872436794,872436667,872436536,872421541,872421413, 872421414,872421031,872423083,872421439] )
+
+process.ecalBadCalibReducedMINIAODFilter = cms.EDFilter(
+    "EcalBadCalibFilter",
+    EcalRecHitSource = cms.InputTag("reducedEgamma:reducedEERecHits"),
+    ecalMinEt        = cms.double(50.),
+    baddetEcal    = baddetEcallist, 
+    taggingMode = cms.bool(True),
+    debug = cms.bool(False)
+    )
+
 ### Extra paths
 if DEBUG_print_content:
   process.content = cms.EDAnalyzer("EventContentAnalyzer")
@@ -70,8 +84,12 @@ if DEBUG_print_content:
 ### Main path
 process.grinderMain = cms.EDAnalyzer('Grinder',
   # events info
-  era_label           = cms.string( YEAR_ERA ),
-  primaryVertex_token = cms.InputTag('offlineSlimmedPrimaryVertices'),
+  era_label            = cms.string( YEAR_ERA ),
+  primaryVertex_token  = cms.InputTag('offlineSlimmedPrimaryVertices'),
+  puSummaryToken_token = cms.InputTag('addPileupInfo'),
+  # trigger
+  triggerResults_token   = cms.InputTag("TriggerResults","","HLT"),
+  triggerPrescales_token = cms.InputTag("patTrigger"),
   # photons
   photons_token          = cms.InputTag('slimmedPhotons'),
   photon_loose_id_token  = cms.string(photon_loose_id),
@@ -82,6 +100,7 @@ process.grinderMain = cms.EDAnalyzer('Grinder',
   effAreaNeuHadFile      = cms.FileInPath( effAreaNeuHad ),
   effAreaPhoFile         = cms.FileInPath( effAreaPho ),
   rho_token              = cms.InputTag("fixedGridRhoFastjetAll"),
+  rho_central_token      = cms.InputTag("fixedGridRhoFastjetCentral"),
   # electrons
   electrons_token          = cms.InputTag('slimmedElectrons'),
   electron_loose_id_token  = cms.string(electron_loose_id),
@@ -95,6 +114,7 @@ process.grinderMain = cms.EDAnalyzer('Grinder',
   jet_JEC_Uncertainty_datafile_token = cms.InputTag( jet_JEC_Uncertainty_datafile ),
   # mets
   mets_token = cms.InputTag('slimmedMETs'),
+  metFilterResults_token   = cms.InputTag("TriggerResults","","RECO"), #FIXME PAT for MC
   # taus
   taus_token = cms.InputTag('slimmedTaus'),
   # genjets
@@ -103,7 +123,7 @@ process.grinderMain = cms.EDAnalyzer('Grinder',
 
 process.content = cms.EDAnalyzer("EventContentAnalyzer")
 # process.path += process.content
-process.path += process.grinderMain
+process.path += process.ecalBadCalibReducedMINIAODFilter * process.grinderMain
 
 
 
