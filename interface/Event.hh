@@ -63,13 +63,18 @@ namespace grinder{
 
     Float_t angular_pt_density, angular_pt_density_central;
     Float_t weight, originalXWGTUP;
-    std::vector<Float_t> weights;
-    Int_t DicedMCNumInteractions, TrueMCNumInteractions;
+    std::vector<Float_t> weights, ps_weights;
+    Int_t DicedMCNumInteractions, TrueMCNumInteractions, RecoNumInteractions;
+    
+    std::vector<Float_t> trigger_prescales;
+    std::vector<Bool_t>  trigger_fires;
   };
   // ========================================================= Event Meta ========================================================= 
   class EventMetadata {
     public: 
-    
+    ULong64_t numEvents;
+    long double sumWeights, originalXWGTUP;
+    std::vector<string> trigger_names;
   };
 };
 

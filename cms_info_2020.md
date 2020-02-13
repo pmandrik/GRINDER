@@ -33,6 +33,8 @@ cd CMSSW_10_2_18/src
 cmsnev
 git cms-init
 # Extra packages for Photon ID from https://twiki.cern.ch/twiki/bin/view/CMS/EgammaPostRecoRecipes#102XTODO
+# extra packages for MET filters from https://twiki.cern.ch/twiki/bin/viewauth/CMS/MissingETOptionalFiltersRun2#How_to_run_ecal_BadCalibReducedM
+git cms-addpkg RecoMET/METFilters
 # GRIDNER packages
 mkdir -p Analysis; cd Analysis;
 git clone git@github.com:pmandrik/GRINDER.git GRINDER; cd GRINDER
@@ -48,6 +50,8 @@ cd CMSSW_10_2_18/src
 cmsnev
 git cms-init
 # Extra packages for Photon ID from https://twiki.cern.ch/twiki/bin/view/CMS/EgammaPostRecoRecipes#102XTODO
+# extra packages for MET filters from https://twiki.cern.ch/twiki/bin/viewauth/CMS/MissingETOptionalFiltersRun2#How_to_run_ecal_BadCalibReducedM
+git cms-addpkg RecoMET/METFilters
 # GRIDNER packages
 mkdir -p Analysis; cd Analysis;
 git clone git@github.com:pmandrik/GRINDER.git GRINDER; cd GRINDER
