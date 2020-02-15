@@ -66,15 +66,20 @@ namespace grinder{
     std::vector<Float_t> weights, ps_weights;
     Int_t DicedMCNumInteractions, TrueMCNumInteractions, RecoNumInteractions;
     
-    std::vector<Float_t> trigger_prescales;
-    std::vector<Bool_t>  trigger_fires;
+    std::vector<Float_t> trigger_fires;
   };
   // ========================================================= Event Meta ========================================================= 
   class EventMetadata {
     public: 
+    EventMetadata(){
+      numEvents = 0;
+      sumWeights = 0;
+      originalXWGTUP = 0;
+    }
+
     ULong64_t numEvents;
     long double sumWeights, originalXWGTUP;
-    std::vector<string> trigger_names;
+    std::vector<std::string> selections_triggers_names;
   };
 };
 

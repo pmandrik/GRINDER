@@ -98,11 +98,11 @@ class Grinder : public edm::one::EDAnalyzer<edm::one::SharedResources>  {
       edm::EDGetTokenT<reco::VertexCollection> primaryVerticesToken;
       edm::EDGetTokenT<std::vector<PileupSummaryInfo>> puSummaryToken;
 
-      TTree *outTree;
+      TTree *outTree, *outTreeMeta;
       grinder::Event  event;
       grinder::Event *event_ptr;
-      grinder::EventMeta eventMeta;
-      grinder::Event *eventMeta_ptr;
+      grinder::EventMetadata  eventMeta;
+      grinder::EventMetadata *eventMeta_ptr;
 
       grinder::Jet jet;
       grinder::Muon muon;
@@ -155,6 +155,11 @@ class Grinder : public edm::one::EDAnalyzer<edm::one::SharedResources>  {
       // Cuts
       double cut_photon_pt, cut_photon_eta, cut_electron_pt, cut_electron_eta, cut_muon_pt, cut_muon_eta;
       double cut_jet_pt, cut_jet_eta;
+      // Triggers
+      std::vector<int> trigger_indexes;
+      std::vector<std::string> selections_triggers_names;
+      edm::ParameterSetID prevTriggerParameterSetID;
+      bool do_trigger_filtering;
 };
 
 //
@@ -187,8 +192,12 @@ Grinder::Grinder(const edm::ParameterSet& iConfig) :
   triggerResultsToken   = consumes<edm::TriggerResults>(iConfig.getParameter<edm::InputTag>("triggerResults_token"));
   triggerPrescales_L1T_token = consumes<pat::PackedTriggerPrescales>(iConfig.getParameter<edm::InputTag>("triggerPrescales_L1T_token"));
   triggerPrescales_HLT_token = consumes<pat::PackedTriggerPrescales>(iConfig.getParameter<edm::InputTag>("triggerPrescales_HLT_token"));
+  selections_triggers_names  = iConfig.getParameter< std::vector<std::string> >("selections_triggers_names");
+  for(unsigned int i = 0; i < selections_triggers_names.size(); i++)
+    eventMeta.selections_triggers_names.push_back( selections_triggers_names.at(i) );
 
-  outTree = fileService->make<TTree>("Events", "Events");
+  // read trigger options
+  do_trigger_filtering = iConfig.getParameter<bool>("do_trigger_filtering");
 
   // read Photons options
   photonToken   = consumes<edm::View<pat::Photon>>(iConfig.getParameter<edm::InputTag>("photons_token"));
@@ -243,8 +252,10 @@ Grinder::Grinder(const edm::ParameterSet& iConfig) :
   cut_jet_eta       = iConfig.getParameter<double>("cut_jet_eta");
 
   // setup output data
+  outTree     = fileService->make<TTree>("Events", "Events");
+  outTreeMeta = fileService->make<TTree>("EventsMeta", "EventsMeta");
+
   event_ptr     = &event;
-  eventMeta_ptr = &eventMeta;
   jets_ptr      = &jets;
   muons_ptr     = &muons;
   photons_ptr   = &photons;
@@ -252,12 +263,15 @@ Grinder::Grinder(const edm::ParameterSet& iConfig) :
   met_ptr       = &met;
 
   outTree->Branch("Event",     &event_ptr);
-  outTree->Branch("EventMeta", &eventMeta_ptr);
   outTree->Branch("Photons",   &photons_ptr);
   outTree->Branch("Electrons", &electrons_ptr);
   outTree->Branch("Muons",     &muons_ptr);
   outTree->Branch("Jets",      &jets_ptr);
   outTree->Branch("MET",       &met_ptr);
+
+  eventMeta_ptr = &eventMeta;
+
+  outTreeMeta->Branch("EventMeta", &eventMeta_ptr);
 }
 
 
@@ -271,6 +285,18 @@ Grinder::~Grinder(){}
 
 void Grinder::analyze(const edm::Event& iEvent, const edm::EventSetup& iSetup){
   using namespace edm;
+
+  // Remove Info from previous events ========================================================================================================
+  jets.clear();
+  muons.clear();
+  photons.clear();
+  electrons.clear();
+  event.weights.clear();
+  event.ps_weights.clear();
+  met.pt_unc_v_u.clear();
+  met.pt_unc_v_d.clear();
+  met.phi_unc_v_u.clear();
+  met.phi_unc_v_d.clear();
 
   // Set Event Info ========================================================================================================
   event.run   = iEvent.id().run();
@@ -310,21 +336,14 @@ void Grinder::analyze(const edm::Event& iEvent, const edm::EventSetup& iSetup){
     } else event.originalXWGTUP = 0;
 
     // alternative PS event weights
-    std::vector<double> const & ps_weights = generator->weights();
-    if(not ps_weights.Empty() and ps_weights.size() > 1){
+    const std::vector<double> & ps_weights = genEvtInfo->weights();
+    if(not ps_weights.empty() and ps_weights.size() > 1){
       for(unsigned int i=0, N_weights = ps_weights.size(); i < N_weights; i++)
         event.ps_weights.push_back( ps_weights[i] );
     }
   }
 
   // Trigger filter ========================================================================================================
-/*
-  edm::Handle<pat::PackedTriggerPrescales> hltPrescales;
-  edm::Handle<pat::PackedTriggerPrescales> l1tPrescales;
-  iEvent.getByToken(hltPrescalesToken, hltPrescales);
-  iEvent.getByToken(l1tPrescalesToken, l1tPrescales);
-  event.prescale = hltPrescales->getPrescaleForIndex(t.second.index) * l1tPrescales->getPrescaleForIndex(t.second.index);
-*/
   edm::Handle<edm::TriggerResults> triggerResults;
   edm::Handle<pat::PackedTriggerPrescales> triggerPrescales_L1T;
   edm::Handle<pat::PackedTriggerPrescales> triggerPrescales_HLT;
@@ -332,16 +351,41 @@ void Grinder::analyze(const edm::Event& iEvent, const edm::EventSetup& iSetup){
   iEvent.getByToken(triggerResultsToken,   triggerResults);
   iEvent.getByToken(triggerPrescales_L1T_token, triggerPrescales_L1T);
   iEvent.getByToken(triggerPrescales_HLT_token, triggerPrescales_HLT);
-  const edm::TriggerNames &names = iEvent.triggerNames(*triggerResults);
 
-  for(int i = 0, N_triggers = trigger_names.size(); i < N_triggers; i++){
-    int index = trigger_indexes[ i ];
+  // update indexes if trigger menu is changed
+  if( triggerResults->parameterSetID() != prevTriggerParameterSetID ){
+    prevTriggerParameterSetID = triggerResults->parameterSetID();
+    trigger_indexes.clear();
 
-    if( triggerResults->accept() );
-
-    event.trigger_prescales.push_back();
-    event.trigger_fires.push_back();
+    const edm::TriggerNames & names = iEvent.triggerNames(*triggerResults);
+    for(int i = 0, N_triggers = selections_triggers_names.size(); i < N_triggers; i++){
+      trigger_indexes.push_back( -1 );
+      std::string trigger_name = selections_triggers_names[i];
+      for(int index = 0, N_all_triggers = names.size(); i < N_all_triggers; i++){
+        std::string name = names.triggerName(i);
+        if( trigger_name != name ) continue;
+        trigger_indexes[i] = index;
+        break;
+      }
+      if( trigger_indexes[i] < 0 ) std::cout << "GRINDER::WARNING, Triger " << trigger_name << " not in trigger menu" << std::endl;
+    }
   }
+
+  // check if event is selected
+  bool passed = false;
+  for(int i = 0, N_triggers = selections_triggers_names.size(); i < N_triggers; i++){
+    int index = trigger_indexes[ i ];
+    if( index < 0 ) continue;
+
+    if( triggerResults->accept( index ) ){
+      event.trigger_fires[i] = triggerPrescales_L1T->getPrescaleForIndex(index) * triggerPrescales_HLT->getPrescaleForIndex(index);
+      if( event.trigger_fires[i] > 0 ) passed = true;
+      continue;
+    }
+    event.trigger_fires[i] = 0;
+  }
+
+  if(not passed and do_trigger_filtering) return;
 
   /*
   for (unsigned int i = 0, n = triggerResults->size(); i < n; ++i) {
@@ -349,7 +393,7 @@ void Grinder::analyze(const edm::Event& iEvent, const edm::EventSetup& iSetup){
   }
   */
 
-  // Read primary vertices collection
+  // Read primary vertices collection ========================================================================================================
   edm::Handle<reco::VertexCollection> vertices;
   iEvent.getByToken(primaryVerticesToken, vertices);
   if (vertices->size() == 0){
@@ -432,7 +476,7 @@ void Grinder::analyze(const edm::Event& iEvent, const edm::EventSetup& iSetup){
 
     photons.emplace_back( photon );
   }
-  if( photons.size() <= 2 ) return; // we are requre at lest two selected photon FIXME
+  // if( photons.size() <= 2 ) return; // we are requre at lest two selected photon FIXME
 
   // iterate over electrons ========================================================================================================
   edm::Handle<edm::View<pat::Electron>> srcElectrons;
@@ -540,10 +584,10 @@ void Grinder::analyze(const edm::Event& iEvent, const edm::EventSetup& iSetup){
       JetCorrectionUncertainty * jecUnc_ptr = jecUnc_v[i];
       jecUnc_ptr->setJetEta( j.eta() );
       jecUnc_ptr->setJetPt(  j.pt()  );
-      jet.JEC_unc_v_u[i] = jecUnc->getUncertainty(true);
+      jet.JEC_unc_v_u[i] = jecUnc->getUncertainty(true);  // FIXME not filled !!!
       jecUnc_ptr->setJetEta( j.eta() );
       jecUnc_ptr->setJetPt(  j.pt()  ); 
-      jet.JEC_unc_v_d[i] = jecUnc->getUncertainty(false);
+      jet.JEC_unc_v_d[i] = jecUnc->getUncertainty(false); // FIXME not filled !!!
 
       std::cout << jecUnc->getUncertainty(true) << std::endl;
     }
@@ -737,6 +781,7 @@ void Grinder::beginJob(){
 
 // ------------ method called once each job just after ending the event loop  ------------
 void Grinder::endJob(){
+  outTreeMeta->Fill();
 }
 
 // ------------ method fills 'descriptions' with the allowed parameters for the module  ------------

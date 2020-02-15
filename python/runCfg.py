@@ -21,8 +21,14 @@ process.maxEvents = cms.untracked.PSet( input = cms.untracked.int32(-1) )
 process.maxEvents = cms.untracked.PSet( input = cms.untracked.int32(500) )
 
 ### Trigger options
+# https://twiki.cern.ch/twiki/bin/view/CMS/TriggerStudies
+selections_triggers = ['IsoMu20']
 if YEAR_ERA == "2016":
-  pass
+  selections_triggers = ['IsoMu20']
+if YEAR_ERA == "2017":
+  selections_triggers = ['IsoMu20']
+if YEAR_ERA == "2018":
+  selections_triggers = ['IsoMu20']
 
 ### Photons options
 # https://twiki.cern.ch/twiki/bin/view/CMS/CutBasedPhotonIdentificationRun2#Photon_ID_Working_Points_WP_defi
@@ -102,6 +108,8 @@ process.grinderMain = cms.EDAnalyzer('Grinder',
   triggerResults_token   = cms.InputTag("TriggerResults","","HLT"),
   triggerPrescales_L1T_token = cms.InputTag("patTrigger", "l1min"),
   triggerPrescales_HLT_token = cms.InputTag("patTrigger"),
+  selections_triggers_names  = cms.vstring( selections_triggers ),
+  do_trigger_filtering       = cms.bool(False),
   # photons
   photons_token          = cms.InputTag('slimmedPhotons'),
   photon_loose_id_token  = cms.string(photon_loose_id),
