@@ -4,7 +4,7 @@ import FWCore.ParameterSet.Config as cms
 ### Options
 DEBUG_print_content = False
 IS_DATA = True
-YEAR_ERA = "2016" # DEFAULT
+YEAR_ERA = "2018" # DEFAULT
 ###
 
 process = cms.Process("Demo")
@@ -17,26 +17,78 @@ process.load("FWCore.MessageService.MessageLogger_cfi")
 process.source           = cms.Source("PoolSource")
 process.source.fileNames = cms.untracked.vstring('file:/eos/cms/store/data/Run2016H/DoubleMuon/MINIAOD/03Feb2017_ver3-v1/50000/8643C759-9BEB-E611-A7CA-008CFA111270.root')
 process.source.fileNames = cms.untracked.vstring('file:/eos/cms/store/data/Run2016B/DoubleMuon/MINIAOD/17Jul2018_ver2-v1/00000/3CB1477F-F98A-E811-B1BC-0CC47A4D760C.root')
+if IS_DATA : 
+  if YEAR_ERA == "2016": 
+  if YEAR_ERA == "2017": 
+  if YEAR_ERA == "2018": 
+else:
+  if YEAR_ERA == "2016": 
+  if YEAR_ERA == "2017": 
+  if YEAR_ERA == "2018": 
 process.maxEvents = cms.untracked.PSet( input = cms.untracked.int32(-1) )
 process.maxEvents = cms.untracked.PSet( input = cms.untracked.int32(500) )
 
+### Global Tag Options
+# https://twiki.cern.ch/twiki/bin/viewauth/CMS/PdmVAnalysisSummaryTable
+GT_name = ""
+if IS_DATA : 
+  if YEAR_ERA == "2016": GT_name = "94X_dataRun2_v10"  # MiniAOD
+  if YEAR_ERA == "2017": GT_name = "94X_dataRun2_v11"  # MiniAOD
+  if YEAR_ERA == "2018": GT_name = "102X_dataRun2_v12" # 2018ABC
+else:
+  if YEAR_ERA == "2016": GT_name = "94X_mcRun2_asymptotic_v3"       # MiniAOD
+  if YEAR_ERA == "2017": GT_name = "94X_mc2017_realistic_v17"       # MiniAOD
+  if YEAR_ERA == "2018": GT_name = "102X_upgrade2018_realistic_v20" # MiniAOD
+
+from Configuration.AlCa.GlobalTag import GlobalTag
+process.load("Configuration.StandardSequences.FrontierConditions_GlobalTag_cff")
+#process.GlobalTag = GlobalTag(process.GlobalTag, GT_name, '')
+process.GlobalTag.globaltag = GT_name
+
 ### Trigger options
 # https://twiki.cern.ch/twiki/bin/view/CMS/TriggerStudies
-selections_triggers = ['IsoMu20']
+selections_triggers = []
 if YEAR_ERA == "2016":
-  selections_triggers = ['IsoMu20']
+  selections_triggers = [ 'HLT_Diphoton30EB_18EB_R9Id_OR_IsoCaloId_AND_HE_R9Id_DoublePixelVeto_Mass55_v7',
+                          'HLT_Diphoton30PV_18PV_R9Id_AND_IsoCaloId_AND_HE_R9Id_DoublePixelVeto_Mass55_v7',
+                          'HLT_Diphoton30_18_R9Id_OR_IsoCaloId_AND_HE_R9Id_DoublePixelSeedMatch_Mass70_v7',
+                          'HLT_Diphoton30_18_R9Id_OR_IsoCaloId_AND_HE_R9Id_Mass90_v7',
+                          'HLT_DoublePhoton60_v7',
+                          'HLT_DoublePhoton85_v8']
 if YEAR_ERA == "2017":
-  selections_triggers = ['IsoMu20']
+  selections_triggers = [ 'HLT_Diphoton30PV_18PV_R9Id_AND_IsoCaloId_AND_HE_R9Id_PixelVeto_Mass55_v13',
+                          'HLT_Diphoton30_18_PVrealAND_R9Id_AND_IsoCaloId_AND_HE_R9Id_NoPixelVeto_Mass55_v8',
+                          'HLT_Diphoton30_18_PVrealAND_R9Id_AND_IsoCaloId_AND_HE_R9Id_PixelVeto_Mass55_v8',
+                          'HLT_Diphoton30_22_R9Id_OR_IsoCaloId_AND_HE_R9Id_Mass90_v12',
+                          'HLT_Diphoton30_22_R9Id_OR_IsoCaloId_AND_HE_R9Id_Mass95_v12',
+                          'HLT_DoublePhoton70_v5',
+                          'HLT_DoublePhoton85_v13']
 if YEAR_ERA == "2018":
-  selections_triggers = ['IsoMu20']
+  selections_triggers = [ 'HLT_Diphoton30PV_18PV_R9Id_AND_IsoCaloId_AND_HE_R9Id_NoPixelVeto_Mass55_v13',
+                          'HLT_Diphoton30PV_18PV_R9Id_AND_IsoCaloId_AND_HE_R9Id_PixelVeto_Mass55_v15',
+                          'HLT_Diphoton30_18_R9IdL_AND_HE_AND_IsoCaloId_NoPixelVeto_v2',
+                          'HLT_Diphoton30_22_R9Id_OR_IsoCaloId_AND_HE_R9Id_Mass90_v13',
+                          'HLT_Diphoton30_22_R9Id_OR_IsoCaloId_AND_HE_R9Id_Mass95_v13',
+                          'HLT_DoublePhoton70_v6',
+                          'HLT_DoublePhoton85_v14',
+                          'HLT_Photon100EE_TightID_TightIso_v2']
+
+### Setup Electron / Photon sequence
+# https://twiki.cern.ch/twiki/bin/view/CMS/EgammaMiniAODV2#2018_MiniAOD
+from RecoEgamma.EgammaTools.EgammaPostRecoTools import setupEgammaPostRecoSeq
+if YEAR_ERA == "2016":
+  setupEgammaPostRecoSeq(process, runEnergyCorrections=False, era='2016-Legacy')
+if YEAR_ERA == "2017":
+  setupEgammaPostRecoSeq(process,runVID=False, era='2017-Nov17ReReco') #saves CPU time by not needlessly re-running VID, if you want the Fall17V2 IDs, set this to True or remove (default is True)
+if YEAR_ERA == "2018":
+  setupEgammaPostRecoSeq(process,era='2018-Prompt')  
 
 ### Photons options
 # https://twiki.cern.ch/twiki/bin/view/CMS/CutBasedPhotonIdentificationRun2#Photon_ID_Working_Points_WP_defi
 # https://twiki.cern.ch/twiki/bin/view/CMS/EgammaMiniAODV2#ID_information
+# https://twiki.cern.ch/twiki/bin/view/CMS/MultivariatePhotonIdentificationRun2#Recommended_MVA_Recipe_for_regul <- Fallv2
 if YEAR_ERA == "2016":
   # ID
-  from RecoEgamma.EgammaTools.EgammaPostRecoTools import setupEgammaPostRecoSeq
-  setupEgammaPostRecoSeq(process, runEnergyCorrections=False, era='2016-Legacy')
   photon_loose_id  = "cutBasedPhotonID-Fall17-94X-V1-loose"
   photon_medium_id = "cutBasedPhotonID-Fall17-94X-V1-medium"
   photon_tight_id  = "cutBasedPhotonID-Fall17-94X-V1-tight"
@@ -45,7 +97,7 @@ if YEAR_ERA == "2016":
   effAreaChHad  = "RecoEgamma/PhotonIdentification/data/Fall17/effAreaPhotons_cone03_pfChargedHadrons_90percentBased_V2.txt"
   effAreaNeuHad = "RecoEgamma/PhotonIdentification/data/Fall17/effAreaPhotons_cone03_pfNeutralHadrons_90percentBased_V2.txt"
   effAreaPho    = "RecoEgamma/PhotonIdentification/data/Fall17/effAreaPhotons_cone03_pfPhotons_90percentBased_V2.txt"
-elif YEAR_ERA == "2017":
+if YEAR_ERA == "2017":
   # ID
   photon_loose_id  = "cutBasedPhotonID-Fall17-94X-V2-loose"
   photon_medium_id = "cutBasedPhotonID-Fall17-94X-V2-medium"
@@ -55,15 +107,36 @@ elif YEAR_ERA == "2017":
   effAreaChHad  = "RecoEgamma/PhotonIdentification/data/Fall17/effAreaPhotons_cone03_pfChargedHadrons_90percentBased_V2.txt"
   effAreaNeuHad = "RecoEgamma/PhotonIdentification/data/Fall17/effAreaPhotons_cone03_pfNeutralHadrons_90percentBased_V2.txt"
   effAreaPho    = "RecoEgamma/PhotonIdentification/data/Fall17/effAreaPhotons_cone03_pfPhotons_90percentBased_V2.txt"
+if YEAR_ERA == "2018":
+  # ID
+  photon_loose_id  = "cutBasedPhotonID-Fall17-94X-V2-loose"
+  photon_medium_id = "cutBasedPhotonID-Fall17-94X-V2-medium"
+  photon_tight_id  = "cutBasedPhotonID-Fall17-94X-V2-tight"
+  photon_mva  = "PhotonMVAEstimatorRunIIFall17v2"
+  # ISO
+  effAreaChHad  = "RecoEgamma/PhotonIdentification/data/Fall17/effAreaPhotons_cone03_pfChargedHadrons_90percentBased_V2.txt"
+  effAreaNeuHad = "RecoEgamma/PhotonIdentification/data/Fall17/effAreaPhotons_cone03_pfNeutralHadrons_90percentBased_V2.txt"
+  effAreaPho    = "RecoEgamma/PhotonIdentification/data/Fall17/effAreaPhotons_cone03_pfPhotons_90percentBased_V2.txt"
+  
+  
+### Electrons options
+# https://twiki.cern.ch/twiki/bin/view/CMS/CutBasedElectronIdentificationRun2#Recipe_for_regular_users_formats
+if YEAR_ERA == "2016":
+  electron_loose_id  = "cutBasedElectronID-Fall17-94X-V2-loose"
+  electron_medium_id = "cutBasedElectronID-Fall17-94X-V2-medium"
+  electron_tight_id  = "cutBasedElectronID-Fall17-94X-V2-tight"
+if YEAR_ERA == "2017":
+  electron_loose_id  = "cutBasedElectronID-Fall17-94X-V2-loose"
+  electron_medium_id = "cutBasedElectronID-Fall17-94X-V2-medium"
+  electron_tight_id  = "cutBasedElectronID-Fall17-94X-V2-tight"
+if YEAR_ERA == "2018":
+  electron_loose_id  = "cutBasedElectronID-Fall17-94X-V2-loose"
+  electron_medium_id = "cutBasedElectronID-Fall17-94X-V2-medium"
+  electron_tight_id  = "cutBasedElectronID-Fall17-94X-V2-tight"
+
 # SF
 # https://twiki.cern.ch/twiki/bin/view/CMS/EgammaIDRecipesRun2#Electron_efficiencies_and_scale
 # Resolution / Correction
-
-### Electrons options
-if YEAR_ERA == "2016":
-  electron_loose_id  = "cutBasedElectronID-Fall17-94X-V1-loose"
-  electron_medium_id = "cutBasedElectronID-Fall17-94X-V1-medium"
-  electron_tight_id  = "cutBasedElectronID-Fall17-94X-V1-tight"
 
 ### Jets options
 jet_JEC_Uncertainty_datafile = "" # unused

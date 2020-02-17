@@ -193,8 +193,10 @@ Grinder::Grinder(const edm::ParameterSet& iConfig) :
   triggerPrescales_L1T_token = consumes<pat::PackedTriggerPrescales>(iConfig.getParameter<edm::InputTag>("triggerPrescales_L1T_token"));
   triggerPrescales_HLT_token = consumes<pat::PackedTriggerPrescales>(iConfig.getParameter<edm::InputTag>("triggerPrescales_HLT_token"));
   selections_triggers_names  = iConfig.getParameter< std::vector<std::string> >("selections_triggers_names");
-  for(unsigned int i = 0; i < selections_triggers_names.size(); i++)
+  for(unsigned int i = 0; i < selections_triggers_names.size(); i++){
     eventMeta.selections_triggers_names.push_back( selections_triggers_names.at(i) );
+    event.trigger_fires.push_back( 0 );
+  }
 
   // read trigger options
   do_trigger_filtering = iConfig.getParameter<bool>("do_trigger_filtering");
@@ -361,8 +363,8 @@ void Grinder::analyze(const edm::Event& iEvent, const edm::EventSetup& iSetup){
     for(int i = 0, N_triggers = selections_triggers_names.size(); i < N_triggers; i++){
       trigger_indexes.push_back( -1 );
       std::string trigger_name = selections_triggers_names[i];
-      for(int index = 0, N_all_triggers = names.size(); i < N_all_triggers; i++){
-        std::string name = names.triggerName(i);
+      for(int index = 0, N_all_triggers = names.size(); index < N_all_triggers; index++){
+        std::string name = names.triggerName(index);
         if( trigger_name != name ) continue;
         trigger_indexes[i] = index;
         break;
@@ -375,14 +377,13 @@ void Grinder::analyze(const edm::Event& iEvent, const edm::EventSetup& iSetup){
   bool passed = false;
   for(int i = 0, N_triggers = selections_triggers_names.size(); i < N_triggers; i++){
     int index = trigger_indexes[ i ];
+    std::cout << i << " " << index << std::endl;
+    event.trigger_fires[i] = 0;
     if( index < 0 ) continue;
-
     if( triggerResults->accept( index ) ){
       event.trigger_fires[i] = triggerPrescales_L1T->getPrescaleForIndex(index) * triggerPrescales_HLT->getPrescaleForIndex(index);
       if( event.trigger_fires[i] > 0 ) passed = true;
-      continue;
     }
-    event.trigger_fires[i] = 0;
   }
 
   if(not passed and do_trigger_filtering) return;
