@@ -15,10 +15,8 @@ process.load("FWCore.MessageService.MessageLogger_cfi")
 
 ### Input
 process.source           = cms.Source("PoolSource")
-process.source.fileNames = cms.untracked.vstring('file:/eos/cms/store/data/Run2016H/DoubleMuon/MINIAOD/03Feb2017_ver3-v1/50000/8643C759-9BEB-E611-A7CA-008CFA111270.root')
-process.source.fileNames = cms.untracked.vstring('file:/eos/cms/store/data/Run2016B/DoubleMuon/MINIAOD/17Jul2018_ver2-v1/00000/3CB1477F-F98A-E811-B1BC-0CC47A4D760C.root')
 if IS_DATA : 
-  if YEAR_ERA == "2016": 
+  if YEAR_ERA == "2016": process.source.fileNames = cms.untracked.vstring('file:/eos/cms/store/data/Run2016B/DoubleMuon/MINIAOD/17Jul2018_ver2-v1/00000/3CB1477F-F98A-E811-B1BC-0CC47A4D760C.root')
   if YEAR_ERA == "2017": 
   if YEAR_ERA == "2018": 
 else:
