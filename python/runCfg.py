@@ -22,11 +22,12 @@ process.source           = cms.Source("PoolSource")
 if IS_DATA : 
   if YEAR_ERA == "2016": process.source.fileNames = cms.untracked.vstring('file:/eos/cms/store/data/Run2016B/DoubleEG/MINIAOD/17Jul2018_ver2-v1/00000/06360CEF-9B8D-E811-8A07-008CFA1111B4.root')
   if YEAR_ERA == "2017": process.source.fileNames = cms.untracked.vstring('file:/eos/cms/store/data/Run2017C/DoubleEG/MINIAOD/31Mar2018-v1/00000/72D2823F-3B38-E811-9260-7CD30ABD2EE8.root')
-  if YEAR_ERA == "2018": process.source.fileNames = cms.untracked.vstring('file:')
+  if YEAR_ERA == "2018": process.source.fileNames = cms.untracked.vstring('file:/eos/cms/store/data/Run2018C/EGamma/MINIAOD/17Sep2018-v1/00000/91003A57-CDF4-134E-8CAB-D2B86D95B1E5.root')
 else:
-  if YEAR_ERA == "2016": 
-  if YEAR_ERA == "2017": 
-  if YEAR_ERA == "2018": 
+  if YEAR_ERA == "2016": process.source.fileNames = cms.untracked.vstring('file:/eos/cms/store/mc/RunIISummer16MiniAODv3/...')
+  if YEAR_ERA == "2017": process.source.fileNames = cms.untracked.vstring('file:/eos/cms/store/mc/RunIIFall17MiniAODv2/...')
+  if YEAR_ERA == "2018": process.source.fileNames = cms.untracked.vstring('file:/eos/cms/store/mc/RunIIAutumn18MiniAOD/...')
+
 process.maxEvents = cms.untracked.PSet( input = cms.untracked.int32(-1) )
 process.maxEvents = cms.untracked.PSet( input = cms.untracked.int32(500) )
 
