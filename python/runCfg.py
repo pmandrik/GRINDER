@@ -14,11 +14,15 @@ process.TFileService = cms.Service('TFileService', fileName = cms.string('grinde
 process.load("FWCore.MessageService.MessageLogger_cfi")
 
 ### Input
+# pathes from https://twiki.cern.ch/twiki/bin/view/CMS/EgHLTRunIISummary
+# 2016 - DoubleEG
+# 2017 - DoubleEG
+# 2018 - EGamma
 process.source           = cms.Source("PoolSource")
 if IS_DATA : 
-  if YEAR_ERA == "2016": process.source.fileNames = cms.untracked.vstring('file:/eos/cms/store/data/Run2016B/DoubleMuon/MINIAOD/17Jul2018_ver2-v1/00000/3CB1477F-F98A-E811-B1BC-0CC47A4D760C.root')
-  if YEAR_ERA == "2017": 
-  if YEAR_ERA == "2018": 
+  if YEAR_ERA == "2016": process.source.fileNames = cms.untracked.vstring('file:/eos/cms/store/data/Run2016B/DoubleEG/MINIAOD/17Jul2018_ver2-v1/00000/06360CEF-9B8D-E811-8A07-008CFA1111B4.root')
+  if YEAR_ERA == "2017": process.source.fileNames = cms.untracked.vstring('file:/eos/cms/store/data/Run2017C/DoubleEG/MINIAOD/31Mar2018-v1/00000/72D2823F-3B38-E811-9260-7CD30ABD2EE8.root')
+  if YEAR_ERA == "2018": process.source.fileNames = cms.untracked.vstring('file:')
 else:
   if YEAR_ERA == "2016": 
   if YEAR_ERA == "2017": 
