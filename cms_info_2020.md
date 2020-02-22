@@ -60,4 +60,18 @@ scram b
 cd data; ./download.sh; cd -
 ```
 
+#### RUNNING IN THE GRID
+Use *scripts/create_crab_cfg.py* in order to create crab cfg files.  
+
+
+
+
+
+
+
+
+
+
+
+
 
