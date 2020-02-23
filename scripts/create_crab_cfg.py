@@ -33,7 +33,7 @@ config.Data.splitting = "FileBased"
 config.Data.unitsPerJob = {% units_per_job %}
 {% endif %}
 config.section_("Site")
-config.Site.storageSite = "T2_CH_CERN"
+config.Site.storageSite = "T2_RU_JINR"
 """
 
   import template_master as tm
@@ -63,7 +63,7 @@ def main() :
   parser.add_argument('--lumi_mask',      default=def_lumi)
   parser.add_argument('--input_run_cfg',  default="${CMSSW_BASE}/src/Analysis/GRINDER/python/runCfg.py") 
   parser.add_argument('--input_run_cfg_options',  default="[]") # [ dummy_key : \"dummy_value\"]"
-  parser.add_argument('--prefix',   default="test_run_data2016D_v0")
+  parser.add_argument('--prefix',   default="test_run_data2016D_v1")
   parser.add_argument('--is_data',  default=True)
   parser.add_argument('--units_per_job',  default=-1)
 
