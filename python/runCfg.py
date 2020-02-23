@@ -2,10 +2,19 @@
 import FWCore.ParameterSet.Config as cms
 
 ### Options
+from FWCore.ParameterSet.VarParsing import VarParsing
+options = VarParsing('analysis')
+
+options.register('isData',    True, VarParsing.multiplicity.singleton, VarParsing.varType.bool,   '')
+options.register('yearEra', '2016', VarParsing.multiplicity.singleton, VarParsing.varType.string, '')
+options.parseArguments()
+
 DEBUG_print_content = False
-IS_DATA = True
-YEAR_ERA = "2018" # DEFAULT
+IS_DATA  = options.isData
+YEAR_ERA = options.yearEra
 ###
+
+print options.yearEra, options.isData
 
 process = cms.Process("Demo")
 process.path = cms.Path()
@@ -125,9 +134,9 @@ if YEAR_ERA == "2018":
 ### Electrons options
 # https://twiki.cern.ch/twiki/bin/view/CMS/CutBasedElectronIdentificationRun2#Recipe_for_regular_users_formats
 if YEAR_ERA == "2016":
-  electron_loose_id  = "cutBasedElectronID-Fall17-94X-V2-loose"
-  electron_medium_id = "cutBasedElectronID-Fall17-94X-V2-medium"
-  electron_tight_id  = "cutBasedElectronID-Fall17-94X-V2-tight"
+  electron_loose_id  = "cutBasedElectronID-Fall17-94X-V1-loose"
+  electron_medium_id = "cutBasedElectronID-Fall17-94X-V1-medium"
+  electron_tight_id  = "cutBasedElectronID-Fall17-94X-V1-tight"
 if YEAR_ERA == "2017":
   electron_loose_id  = "cutBasedElectronID-Fall17-94X-V2-loose"
   electron_medium_id = "cutBasedElectronID-Fall17-94X-V2-medium"
