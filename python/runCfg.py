@@ -99,21 +99,22 @@ if YEAR_ERA == "2018":
 # https://twiki.cern.ch/twiki/bin/view/CMS/CutBasedPhotonIdentificationRun2#Photon_ID_Working_Points_WP_defi
 # https://twiki.cern.ch/twiki/bin/view/CMS/EgammaMiniAODV2#ID_information
 # https://twiki.cern.ch/twiki/bin/view/CMS/MultivariatePhotonIdentificationRun2#Recommended_MVA_Recipe_for_regul <- Fallv2
+# https://twiki.cern.ch/twiki/bin/view/CMS/CutBasedPhotonIdentificationRun2
 if YEAR_ERA == "2016":
   # ID
-  photon_loose_id  = "cutBasedPhotonID-Fall17-94X-V1-loose"
-  photon_medium_id = "cutBasedPhotonID-Fall17-94X-V1-medium"
-  photon_tight_id  = "cutBasedPhotonID-Fall17-94X-V1-tight"
+  photon_loose_id  = "egmPhotonIDs:cutBasedPhotonID-Spring16-V2p2-loose"
+  photon_medium_id = "egmPhotonIDs:cutBasedPhotonID-Spring16-V2p2-medium"
+  photon_tight_id  = "egmPhotonIDs:cutBasedPhotonID-Spring16-V2p2-tight"
   photon_mva  = "PhotonMVAEstimatorRunIIFall17v1"
   # ISO
-  effAreaChHad  = "RecoEgamma/PhotonIdentification/data/Fall17/effAreaPhotons_cone03_pfChargedHadrons_90percentBased_V2.txt"
-  effAreaNeuHad = "RecoEgamma/PhotonIdentification/data/Fall17/effAreaPhotons_cone03_pfNeutralHadrons_90percentBased_V2.txt"
-  effAreaPho    = "RecoEgamma/PhotonIdentification/data/Fall17/effAreaPhotons_cone03_pfPhotons_90percentBased_V2.txt"
+  effAreaChHad  = "RecoEgamma/PhotonIdentification/data/Spring16/effAreaPhotons_cone03_pfChargedHadrons_90percentBased.txt"
+  effAreaNeuHad = "RecoEgamma/PhotonIdentification/data/Spring16/effAreaPhotons_cone03_pfNeutralHadrons_90percentBased.txt"
+  effAreaPho    = "RecoEgamma/PhotonIdentification/data/Spring16/effAreaPhotons_cone03_pfPhotons_90percentBased.txt"
 if YEAR_ERA == "2017":
   # ID
-  photon_loose_id  = "cutBasedPhotonID-Fall17-94X-V2-loose"
-  photon_medium_id = "cutBasedPhotonID-Fall17-94X-V2-medium"
-  photon_tight_id  = "cutBasedPhotonID-Fall17-94X-V2-tight"
+  photon_loose_id  = "egmPhotonIDs:cutBasedPhotonID-Fall17-94X-V2-loose"
+  photon_medium_id = "egmPhotonIDs:cutBasedPhotonID-Fall17-94X-V2-medium"
+  photon_tight_id  = "egmPhotonIDs:cutBasedPhotonID-Fall17-94X-V2-tight"
   photon_mva  = "PhotonMVAEstimatorRunIIFall17v2"
   # ISO
   effAreaChHad  = "RecoEgamma/PhotonIdentification/data/Fall17/effAreaPhotons_cone03_pfChargedHadrons_90percentBased_V2.txt"
@@ -121,9 +122,9 @@ if YEAR_ERA == "2017":
   effAreaPho    = "RecoEgamma/PhotonIdentification/data/Fall17/effAreaPhotons_cone03_pfPhotons_90percentBased_V2.txt"
 if YEAR_ERA == "2018":
   # ID
-  photon_loose_id  = "cutBasedPhotonID-Fall17-94X-V2-loose"
-  photon_medium_id = "cutBasedPhotonID-Fall17-94X-V2-medium"
-  photon_tight_id  = "cutBasedPhotonID-Fall17-94X-V2-tight"
+  photon_loose_id  = "egmPhotonIDs:cutBasedPhotonID-Fall17-94X-V2-loose"
+  photon_medium_id = "egmPhotonIDs:cutBasedPhotonID-Fall17-94X-V2-medium"
+  photon_tight_id  = "cegmPhotonIDs:utBasedPhotonID-Fall17-94X-V2-tight"
   photon_mva  = "PhotonMVAEstimatorRunIIFall17v2"
   # ISO
   effAreaChHad  = "RecoEgamma/PhotonIdentification/data/Fall17/effAreaPhotons_cone03_pfChargedHadrons_90percentBased_V2.txt"

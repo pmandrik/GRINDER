@@ -70,7 +70,7 @@ def main() :
   cfg_dic = vars(parser.parse_args())
   cfg_dic["request_name"] = cfg_dic["prefix"]
   if cfg_dic["units_per_job"] < 0 : 
-    if cfg_dic["is_data"] : cfg_dic["units_per_job"] = 250
+    if cfg_dic["is_data"] : cfg_dic["units_per_job"] = 400
     else :                  cfg_dic["units_per_job"] = 5
   
   create_cfg( cfg_dic["cfg_path"], cfg_dic )

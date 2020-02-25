@@ -447,10 +447,12 @@ void Grinder::analyze(const edm::Event& iEvent, const edm::EventSetup& iSetup){
 
     // ISO https://twiki.cern.ch/twiki/bin/view/CMS/EgammaPFBasedIsolationRun2
     // https://github.com/varuns23/phoJetAnalysis/blob/master/phoJetNtuplizer/plugins/phoJetNtuplizer_photons.cc
+    // https://arxiv.org/pdf/1502.02702.pdf
     superCluster_eta = fabs( ph.superCluster()->eta());
     photon.sumChargedHadronPt = std::max( 0.0, ph.userFloat("phoChargedIsolation")       - (*rho) * effAreaChHadrons.getEffectiveArea( superCluster_eta )  );
     photon.sumNeutralHadronEt = std::max( 0.0, ph.userFloat("phoNeutralHadronIsolation") - (*rho) * effAreaNeuHadrons.getEffectiveArea( superCluster_eta ) );
     photon.sumPhotonEt        = std::max( 0.0, ph.userFloat("phoPhotonIsolation")        - (*rho) * effAreaPhotons.getEffectiveArea( superCluster_eta )    );
+    // FIXME sumPUPt ???
 
     // Energy Scale and Smearing
     // https://twiki.cern.ch/twiki/bin/view/CMS/EgammaMiniAODV2#Energy_Scale_and_Smearing
@@ -477,7 +479,6 @@ void Grinder::analyze(const edm::Event& iEvent, const edm::EventSetup& iSetup){
 
     photons.emplace_back( photon );
   }
-  // if( photons.size() <= 2 ) return; // we are requre at lest two selected photon FIXME
 
   // iterate over electrons ========================================================================================================
   edm::Handle<edm::View<pat::Electron>> srcElectrons;
@@ -672,7 +673,7 @@ void Grinder::analyze(const edm::Event& iEvent, const edm::EventSetup& iSetup){
     jet.pfDeepCSVJetTags_probc    = j.bDiscriminator("pfDeepCSVJetTags_probc");
     jet.pfDeepCSVJetTags_probudsg = j.bDiscriminator("pfDeepCSVJetTags:probudsg");
 
-    // DeepJet
+    // DeepJet FIXME not working for b tag
     jet.pfDeepFlavourJetTags_probb    = j.bDiscriminator("pfDeepFlavourJetTags_probb");
     jet.pfDeepFlavourJetTags_probbb   = j.bDiscriminator("pfDeepFlavourJetTags_probbb");
     jet.pfDeepFlavourJetTags_problepb = j.bDiscriminator("pfDeepFlavourJetTags_problepb");
@@ -743,7 +744,7 @@ void Grinder::analyze(const edm::Event& iEvent, const edm::EventSetup& iSetup){
     else if( filter_names.triggerName(i) == "Flag_BadPFMuonFilter" )                     met.Flag_BadPFMuonFilter                    = true ; 
     else if( filter_names.triggerName(i) == "Flag_BadChargedCandidateFilter" )           met.Flag_BadChargedCandidateFilter          = true ; 
     else if( filter_names.triggerName(i) == "Flag_eeBadScFilter" )                       met.Flag_eeBadScFilter                      = true ;
-    else if( filter_names.triggerName(i) == "Flag_ecalBadCalibReducedMINIAODFilter" )    met.Flag_ecalBadCalibReducedMINIAODFilter   = true ;    // FIXME need to re-run filter
+    else if( filter_names.triggerName(i) == "Flag_ecalBadCalibReducedMINIAODFilter" )    met.Flag_ecalBadCalibReducedMINIAODFilter   = true ; // FIXME need to re-run filter
   }
 
   // re-run MET filter for "Flag_ecalBadCalibReducedMINIAODFilter"
