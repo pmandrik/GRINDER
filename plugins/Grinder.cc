@@ -359,13 +359,17 @@ void Grinder::analyze(const edm::Event& iEvent, const edm::EventSetup& iSetup){
     prevTriggerParameterSetID = triggerResults->parameterSetID();
     trigger_indexes.clear();
 
-    const edm::TriggerNames & names = iEvent.triggerNames(*triggerResults);
+    const edm::TriggerNames & cmssw_trigger_names = iEvent.triggerNames(*triggerResults);
+    //  for(int index = 0, N_all_triggers = names.size(); index < N_all_triggers; index++){
+    //    std::cout << names.triggerName( index ) << std::endl;
+    //  }
+
     for(int i = 0, N_triggers = selections_triggers_names.size(); i < N_triggers; i++){
       trigger_indexes.push_back( -1 );
       std::string trigger_name = selections_triggers_names[i];
-      for(int index = 0, N_all_triggers = names.size(); index < N_all_triggers; index++){
-        std::string name = names.triggerName(index);
-        if( trigger_name != name ) continue;
+      for(int index = 0, N_all_triggers = cmssw_trigger_names.size(); index < N_all_triggers; index++){
+        std::string cmssw_trigger_name = cmssw_trigger_names.triggerName(index);
+        if(  cmssw_trigger_name.find( trigger_name ) == std::string::npos ) continue;
         trigger_indexes[i] = index;
         break;
       }
@@ -376,8 +380,8 @@ void Grinder::analyze(const edm::Event& iEvent, const edm::EventSetup& iSetup){
   // check if event is selected
   bool passed = false;
   for(int i = 0, N_triggers = selections_triggers_names.size(); i < N_triggers; i++){
-    int index = trigger_indexes[ i ];
-    std::cout << i << " " << index << std::endl;
+    const int & index = trigger_indexes[ i ];
+    // std::cout << i << " " << index << std::endl;
     event.trigger_fires[i] = 0;
     if( index < 0 ) continue;
     if( triggerResults->accept( index ) ){
@@ -578,6 +582,7 @@ void Grinder::analyze(const edm::Event& iEvent, const edm::EventSetup& iSetup){
     reco::Candidate::LorentzVector const &rawP4 = j.correctedP4("Uncorrected");
 
     // FIXME how to correct jets ???
+    // std::cout << j.pt() << " " << rawP4.pt() << std::endl;
 
     // pT scale corrections
     // here you must use the CORRECTED jet pt
@@ -591,7 +596,7 @@ void Grinder::analyze(const edm::Event& iEvent, const edm::EventSetup& iSetup){
       jecUnc_ptr->setJetPt(  j.pt()  ); 
       jet.JEC_unc_v_d[i] = jecUnc->getUncertainty(false); // FIXME not filled !!!
 
-      std::cout << jecUnc->getUncertainty(true) << std::endl;
+      // std::cout << jecUnc->getUncertainty(true) << std::endl;
     }
     double JEC_uncertanty = std::max( jet.JEC_unc_v_u.at( 0 ), jet.JEC_unc_v_d.at( 0 ) );
     JEC_uncertanty = std::max(JEC_uncertanty, 0.);
@@ -623,7 +628,7 @@ void Grinder::analyze(const edm::Event& iEvent, const edm::EventSetup& iSetup){
     }
 
     double jet_maxPt = j.pt() * ( 1. + JEC_uncertanty + JER_uncertanty );
-    std::cout << JEC_uncertanty << " " << JER_uncertanty << std::endl;
+    // std::cout << JEC_uncertanty << " " << JER_uncertanty << std::endl;
     if( rawP4.pt()  < cut_jet_pt and jet_maxPt < cut_jet_pt ) continue;
     if( TMath::Abs(rawP4.eta()) > cut_jet_eta ) continue;
 

@@ -38,10 +38,11 @@ else:
   if YEAR_ERA == "2018": process.source.fileNames = cms.untracked.vstring('file:/eos/cms/store/mc/RunIIAutumn18MiniAOD/...')
 
 process.maxEvents = cms.untracked.PSet( input = cms.untracked.int32(-1) )
-process.maxEvents = cms.untracked.PSet( input = cms.untracked.int32(500) )
+# process.maxEvents = cms.untracked.PSet( input = cms.untracked.int32(500) )
 
 ### Global Tag Options
 # https://twiki.cern.ch/twiki/bin/viewauth/CMS/PdmVAnalysisSummaryTable
+# https://twiki.cern.ch/twiki/bin/view/CMSPublic/WorkBookJetEnergyCorrections#JecGlobalTag
 GT_name = ""
 if IS_DATA : 
   if YEAR_ERA == "2016": GT_name = "94X_dataRun2_v10"  # MiniAOD
@@ -53,6 +54,7 @@ else:
   if YEAR_ERA == "2018": GT_name = "102X_upgrade2018_realistic_v20" # MiniAOD
 
 from Configuration.AlCa.GlobalTag import GlobalTag
+process.load('Configuration.StandardSequences.Services_cff')
 process.load("Configuration.StandardSequences.FrontierConditions_GlobalTag_cff")
 #process.GlobalTag = GlobalTag(process.GlobalTag, GT_name, '')
 process.GlobalTag.globaltag = GT_name
@@ -61,29 +63,29 @@ process.GlobalTag.globaltag = GT_name
 # https://twiki.cern.ch/twiki/bin/view/CMS/TriggerStudies
 selections_triggers = []
 if YEAR_ERA == "2016":
-  selections_triggers = [ 'HLT_Diphoton30EB_18EB_R9Id_OR_IsoCaloId_AND_HE_R9Id_DoublePixelVeto_Mass55_v7',
-                          'HLT_Diphoton30PV_18PV_R9Id_AND_IsoCaloId_AND_HE_R9Id_DoublePixelVeto_Mass55_v7',
-                          'HLT_Diphoton30_18_R9Id_OR_IsoCaloId_AND_HE_R9Id_DoublePixelSeedMatch_Mass70_v7',
-                          'HLT_Diphoton30_18_R9Id_OR_IsoCaloId_AND_HE_R9Id_Mass90_v7',
-                          'HLT_DoublePhoton60_v7',
-                          'HLT_DoublePhoton85_v8']
+  selections_triggers = [ 'HLT_Diphoton30EB_18EB_R9Id_OR_IsoCaloId_AND_HE_R9Id_DoublePixelVeto_Mass55',
+                          'HLT_Diphoton30PV_18PV_R9Id_AND_IsoCaloId_AND_HE_R9Id_DoublePixelVeto_Mass55',
+                          'HLT_Diphoton30_18_R9Id_OR_IsoCaloId_AND_HE_R9Id_DoublePixelSeedMatch_Mass70',
+                          'HLT_Diphoton30_18_R9Id_OR_IsoCaloId_AND_HE_R9Id_Mass90',
+                          'HLT_DoublePhoton60',
+                          'HLT_DoublePhoton85']
 if YEAR_ERA == "2017":
-  selections_triggers = [ 'HLT_Diphoton30PV_18PV_R9Id_AND_IsoCaloId_AND_HE_R9Id_PixelVeto_Mass55_v13',
-                          'HLT_Diphoton30_18_PVrealAND_R9Id_AND_IsoCaloId_AND_HE_R9Id_NoPixelVeto_Mass55_v8',
-                          'HLT_Diphoton30_18_PVrealAND_R9Id_AND_IsoCaloId_AND_HE_R9Id_PixelVeto_Mass55_v8',
-                          'HLT_Diphoton30_22_R9Id_OR_IsoCaloId_AND_HE_R9Id_Mass90_v12',
-                          'HLT_Diphoton30_22_R9Id_OR_IsoCaloId_AND_HE_R9Id_Mass95_v12',
-                          'HLT_DoublePhoton70_v5',
-                          'HLT_DoublePhoton85_v13']
+  selections_triggers = [ 'HLT_Diphoton30PV_18PV_R9Id_AND_IsoCaloId_AND_HE_R9Id_PixelVeto_Mass55',
+                          'HLT_Diphoton30_18_PVrealAND_R9Id_AND_IsoCaloId_AND_HE_R9Id_NoPixelVeto_Mass55',
+                          'HLT_Diphoton30_18_PVrealAND_R9Id_AND_IsoCaloId_AND_HE_R9Id_PixelVeto_Mass55',
+                          'HLT_Diphoton30_22_R9Id_OR_IsoCaloId_AND_HE_R9Id_Mass90',
+                          'HLT_Diphoton30_22_R9Id_OR_IsoCaloId_AND_HE_R9Id_Mass95',
+                          'HLT_DoublePhoton70',
+                          'HLT_DoublePhoton85']
 if YEAR_ERA == "2018":
-  selections_triggers = [ 'HLT_Diphoton30PV_18PV_R9Id_AND_IsoCaloId_AND_HE_R9Id_NoPixelVeto_Mass55_v13',
-                          'HLT_Diphoton30PV_18PV_R9Id_AND_IsoCaloId_AND_HE_R9Id_PixelVeto_Mass55_v15',
-                          'HLT_Diphoton30_18_R9IdL_AND_HE_AND_IsoCaloId_NoPixelVeto_v2',
-                          'HLT_Diphoton30_22_R9Id_OR_IsoCaloId_AND_HE_R9Id_Mass90_v13',
-                          'HLT_Diphoton30_22_R9Id_OR_IsoCaloId_AND_HE_R9Id_Mass95_v13',
-                          'HLT_DoublePhoton70_v6',
-                          'HLT_DoublePhoton85_v14',
-                          'HLT_Photon100EE_TightID_TightIso_v2']
+  selections_triggers = [ 'HLT_Diphoton30PV_18PV_R9Id_AND_IsoCaloId_AND_HE_R9Id_NoPixelVeto_Mass55',
+                          'HLT_Diphoton30PV_18PV_R9Id_AND_IsoCaloId_AND_HE_R9Id_PixelVeto_Mass55',
+                          'HLT_Diphoton30_18_R9IdL_AND_HE_AND_IsoCaloId_NoPixelVeto',
+                          'HLT_Diphoton30_22_R9Id_OR_IsoCaloId_AND_HE_R9Id_Mass90',
+                          'HLT_Diphoton30_22_R9Id_OR_IsoCaloId_AND_HE_R9Id_Mass95',
+                          'HLT_DoublePhoton70',
+                          'HLT_DoublePhoton85',
+                          'HLT_Photon100EE_TightID_TightIso']
 
 ### Setup Electron / Photon sequence
 # https://twiki.cern.ch/twiki/bin/view/CMS/EgammaMiniAODV2#2018_MiniAOD
@@ -102,9 +104,9 @@ if YEAR_ERA == "2018":
 # https://twiki.cern.ch/twiki/bin/view/CMS/CutBasedPhotonIdentificationRun2
 if YEAR_ERA == "2016":
   # ID
-  photon_loose_id  = "egmPhotonIDs:cutBasedPhotonID-Spring16-V2p2-loose"
-  photon_medium_id = "egmPhotonIDs:cutBasedPhotonID-Spring16-V2p2-medium"
-  photon_tight_id  = "egmPhotonIDs:cutBasedPhotonID-Spring16-V2p2-tight"
+  photon_loose_id  = "cutBasedPhotonID-Spring16-V2p2-loose"
+  photon_medium_id = "cutBasedPhotonID-Spring16-V2p2-medium"
+  photon_tight_id  = "cutBasedPhotonID-Spring16-V2p2-tight"
   photon_mva  = "PhotonMVAEstimatorRunIIFall17v1"
   # ISO
   effAreaChHad  = "RecoEgamma/PhotonIdentification/data/Spring16/effAreaPhotons_cone03_pfChargedHadrons_90percentBased.txt"
@@ -112,9 +114,9 @@ if YEAR_ERA == "2016":
   effAreaPho    = "RecoEgamma/PhotonIdentification/data/Spring16/effAreaPhotons_cone03_pfPhotons_90percentBased.txt"
 if YEAR_ERA == "2017":
   # ID
-  photon_loose_id  = "egmPhotonIDs:cutBasedPhotonID-Fall17-94X-V2-loose"
-  photon_medium_id = "egmPhotonIDs:cutBasedPhotonID-Fall17-94X-V2-medium"
-  photon_tight_id  = "egmPhotonIDs:cutBasedPhotonID-Fall17-94X-V2-tight"
+  photon_loose_id  = "cutBasedPhotonID-Fall17-94X-V2-loose"
+  photon_medium_id = "cutBasedPhotonID-Fall17-94X-V2-medium"
+  photon_tight_id  = "cutBasedPhotonID-Fall17-94X-V2-tight"
   photon_mva  = "PhotonMVAEstimatorRunIIFall17v2"
   # ISO
   effAreaChHad  = "RecoEgamma/PhotonIdentification/data/Fall17/effAreaPhotons_cone03_pfChargedHadrons_90percentBased_V2.txt"
@@ -122,9 +124,9 @@ if YEAR_ERA == "2017":
   effAreaPho    = "RecoEgamma/PhotonIdentification/data/Fall17/effAreaPhotons_cone03_pfPhotons_90percentBased_V2.txt"
 if YEAR_ERA == "2018":
   # ID
-  photon_loose_id  = "egmPhotonIDs:cutBasedPhotonID-Fall17-94X-V2-loose"
-  photon_medium_id = "egmPhotonIDs:cutBasedPhotonID-Fall17-94X-V2-medium"
-  photon_tight_id  = "cegmPhotonIDs:utBasedPhotonID-Fall17-94X-V2-tight"
+  photon_loose_id  = "cutBasedPhotonID-Fall17-94X-V2-loose"
+  photon_medium_id = "cutBasedPhotonID-Fall17-94X-V2-medium"
+  photon_tight_id  = "cutBasedPhotonID-Fall17-94X-V2-tight"
   photon_mva  = "PhotonMVAEstimatorRunIIFall17v2"
   # ISO
   effAreaChHad  = "RecoEgamma/PhotonIdentification/data/Fall17/effAreaPhotons_cone03_pfChargedHadrons_90percentBased_V2.txt"
@@ -152,6 +154,17 @@ if YEAR_ERA == "2018":
 # Resolution / Correction
 
 ### Jets options
+# re-apply JEC
+# https://twiki.cern.ch/twiki/bin/view/CMSPublic/WorkBookJetEnergyCorrections?rev=139#CorrPatJets
+from PhysicsTools.PatAlgos.tools.jetTools import updateJetCollection
+updateJetCollection(
+  process,
+  jetSource = cms.InputTag('slimmedJets'),
+  labelName = 'UpdatedJEC', # -> updatedPatJetsUpdatedJEC
+  jetCorrections = ('AK4PFchs', cms.vstring(['L1FastJet', 'L2Relative', 'L3Absolute']), 'None')  # Do not forget 'L2L3Residual' on data!
+)
+
+
 jet_JEC_Uncertainty_datafile = "" # unused
 if YEAR_ERA == "2016":
   pass
@@ -195,7 +208,7 @@ process.grinderMain = cms.EDAnalyzer('Grinder',
   triggerPrescales_L1T_token = cms.InputTag("patTrigger", "l1min"),
   triggerPrescales_HLT_token = cms.InputTag("patTrigger"),
   selections_triggers_names  = cms.vstring( selections_triggers ),
-  do_trigger_filtering       = cms.bool(False),
+  do_trigger_filtering       = cms.bool(True),
   # photons
   photons_token          = cms.InputTag('slimmedPhotons'),
   photon_loose_id_token  = cms.string(photon_loose_id),
@@ -213,7 +226,7 @@ process.grinderMain = cms.EDAnalyzer('Grinder',
   # muons
   muons_token    = cms.InputTag('slimmedMuons'),
   # jets
-  jets_token     = cms.InputTag('slimmedJets'),
+  jets_token     = cms.InputTag('updatedPatJetsUpdatedJEC'), # cms.InputTag('slimmedJets'),
   jet_type_label = cms.string('AK4PF'),
   jet_JEC_Uncertainty_datafile_token = cms.InputTag( jet_JEC_Uncertainty_datafile ),
   # mets
@@ -241,7 +254,7 @@ process.grinderMain = cms.EDAnalyzer('Grinder',
 
 process.content = cms.EDAnalyzer("EventContentAnalyzer")
 # process.path += process.content
-process.path += process.ecalBadCalibReducedMINIAODFilter * process.grinderMain
+process.path += process.ecalBadCalibReducedMINIAODFilter * process.patJetCorrFactorsUpdatedJEC * process.updatedPatJetsUpdatedJEC * process.grinderMain
 
 
 
