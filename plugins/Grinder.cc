@@ -178,11 +178,10 @@ Grinder::Grinder(const edm::ParameterSet& iConfig) :
   effAreaNeuHadrons( (iConfig.getParameter<edm::FileInPath>("effAreaNeuHadFile")).fullPath() ),
   effAreaPhotons( (iConfig.getParameter<edm::FileInPath>("effAreaPhoFile")).fullPath() )
 {
-  //now do what ever initialization is needed
+  // now do what ever initialization is needed
   usesResource("TFileService");
   era_label     = iConfig.getParameter<std::string>("era_label");
 
-  electronToken         = consumes<edm::View<pat::Electron>>(iConfig.getParameter<edm::InputTag>("electrons_token"));
   tauToken              = consumes<edm::View<pat::Tau>>(iConfig.getParameter<edm::InputTag>("taus_token"));
   rhoToken              = consumes<double>(iConfig.getParameter<edm::InputTag>("rho_token"));
   rhoCentralToken       = consumes<double>(iConfig.getParameter<edm::InputTag>("rho_central_token"));
@@ -211,6 +210,7 @@ Grinder::Grinder(const edm::ParameterSet& iConfig) :
   photon_mva_token_cat   = photon_mva_token + "Categories";
 
   // read Electron options
+  electronToken = consumes<edm::View<pat::Electron>>(iConfig.getParameter<edm::InputTag>("electrons_token"));
   electron_loose_id_token  = iConfig.getParameter<std::string>("electron_loose_id_token");
   electron_medium_id_token = iConfig.getParameter<std::string>("electron_medium_id_token");
   electron_tight_id_token  = iConfig.getParameter<std::string>("electron_tight_id_token");
@@ -241,7 +241,7 @@ Grinder::Grinder(const edm::ParameterSet& iConfig) :
   // read met options
   metToken              = consumes<edm::View<pat::MET>>(iConfig.getParameter<edm::InputTag>("mets_token"));
   metFilterResultsToken = consumes<edm::TriggerResults>(iConfig.getParameter<edm::InputTag>("metFilterResults_token"));
-  ecalBadCalibFilterUpdate_token = consumes< bool >(edm::InputTag("ecalBadCalibReducedMINIAODFilter"));
+  ecalBadCalibFilterUpdate_token = consumes<bool>(edm::InputTag("ecalBadCalibReducedMINIAODFilter"));
 
   // read cuts
   cut_photon_pt     = iConfig.getParameter<double>("cut_photon_pt");
@@ -557,11 +557,15 @@ void Grinder::analyze(const edm::Event& iEvent, const edm::EventSetup& iSetup){
 
     // ISO
     // https://twiki.cern.ch/twiki/bin/view/CMS/SWGuideMuonIdRun2#Muon_Identification
-    muon.relIsoTrk = (mu.pfIsolationR04().sumChargedHadronPt + std::max(0., mu.pfIsolationR04().sumNeutralHadronEt + mu.pfIsolationR04().sumPhotonEt - 0.5*mu.pfIsolationR04().sumPUPt))/mu.pt();
-    muon.relIsoPF  = mu.isolationR03().sumPt/mu.pt();
+    muon.relIsoPF  = (mu.pfIsolationR04().sumChargedHadronPt + std::max(0., mu.pfIsolationR04().sumNeutralHadronEt + mu.pfIsolationR04().sumPhotonEt - 0.5*mu.pfIsolationR04().sumPUPt))/mu.pt();
+    muon.relIsoTrk = mu.isolationR03().sumPt/mu.pt();
 
     // SF
     // https://twiki.cern.ch/twiki/bin/viewauth/CMS/MuonReferenceEffsRun2
+
+    // Energy Correction
+    // https://twiki.cern.ch/twiki/bin/viewauth/CMS/MuonReferenceScaleResolRun2
+    // going to use energy out of the box ... 
 
     muons.emplace_back( muon );
   }
