@@ -198,6 +198,7 @@ if DEBUG_print_content:
 ### Main path
 process.grinderMain = cms.EDAnalyzer('Grinder',
   # events info
+  is_data              = cms.bool( IS_DATA ),
   era_label            = cms.string( YEAR_ERA ),
   primaryVertex_token  = cms.InputTag('offlineSlimmedPrimaryVertices'),
   puSummaryToken_token = cms.InputTag('addPileupInfo'),

@@ -180,7 +180,8 @@ Grinder::Grinder(const edm::ParameterSet& iConfig) :
 {
   // now do what ever initialization is needed
   usesResource("TFileService");
-  era_label     = iConfig.getParameter<std::string>("era_label");
+  era_label         = iConfig.getParameter<std::string>("era_label");
+  eventMeta.is_data = iConfig.getParameter<bool>("is_data");
 
   tauToken              = consumes<edm::View<pat::Tau>>(iConfig.getParameter<edm::InputTag>("taus_token"));
   rhoToken              = consumes<double>(iConfig.getParameter<edm::InputTag>("rho_token"));
@@ -585,7 +586,8 @@ void Grinder::analyze(const edm::Event& iEvent, const edm::EventSetup& iSetup){
     // https://twiki.cern.ch/twiki/bin/view/CMS/TopJME#Jets
     reco::Candidate::LorentzVector const &rawP4 = j.correctedP4("Uncorrected");
 
-    // FIXME how to correct jets ???
+    // Correct jets
+    // https://twiki.cern.ch/twiki/bin/view/CMSPublic/WorkBookJetEnergyCorrections?rev=139#CorrPatJets
     // std::cout << j.pt() << " " << rawP4.pt() << std::endl;
 
     // pT scale corrections
@@ -656,6 +658,7 @@ void Grinder::analyze(const edm::Event& iEvent, const edm::EventSetup& iSetup){
     CHM  = j.chargedMultiplicity();
 
     double eta = rawP4.eta();
+    jet.isTight = false;
     if(era_label == "2016"){
       if      ( TMath::Abs( eta ) < 2.7 ) jet.isTight = (NHF<0.90 && NEMF<0.90 && NumConst>1) && ((abs(eta)<=2.4 && CHF>0 && CHM>0 && CEMF<0.99) || abs(eta)>2.4) && abs(eta)<=2.7;
       else if ( TMath::Abs( eta ) < 3.0 ) jet.isTight = (NHF<0.98 && NEMF>0.01 && NumNeutralParticles>2 && abs(eta)>2.7 && abs(eta)<=3.0 );
@@ -698,6 +701,9 @@ void Grinder::analyze(const edm::Event& iEvent, const edm::EventSetup& iSetup){
     // b-tagging uncertanties
     // https://twiki.cern.ch/twiki/bin/viewauth/CMS/BTagSFMethods
     // will use standalone
+
+    // TODO pileupJetID
+    // https://twiki.cern.ch/twiki/bin/viewauth/CMS/PileupJetID
 
     jets.emplace_back( jet );
   }

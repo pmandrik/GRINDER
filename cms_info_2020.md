@@ -69,7 +69,8 @@ crab checkwrite --site=T2_CH_CERN # T2_RU_JINR T2_RU_PNPI
 
 Use *scripts/create_crab_cfg.py* in order to create crab cfg files.  
 
-
+#### POSTPROCESSING
+Use *scripts/get_pileup_reweighting_func.py* to generate pileup.root files with reweighting functions
 
 
 

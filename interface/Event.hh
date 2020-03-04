@@ -77,6 +77,7 @@ namespace grinder{
       originalXWGTUP = 0;
     }
 
+    bool is_data;
     ULong64_t numEvents;
     long double sumWeights, originalXWGTUP;
     std::vector<std::string> selections_triggers_names;
