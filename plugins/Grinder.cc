@@ -1,5 +1,7 @@
 // -*- C++ -*-
 
+#define DEBUG_GRINDER 1
+
 // system include files
 #include <memory>
 
@@ -67,17 +69,18 @@
 #include "Analysis/GRINDER/interface/Grinder_extensions.hh"
 using namespace grinder;
 
-class Grinder : public edm::one::EDAnalyzer<edm::one::SharedResources>  {
+class Grinder : public edm::one::EDAnalyzer<edm::one::WatchRuns, edm::one::SharedResources>  {
    public:
       explicit Grinder(const edm::ParameterSet&);
       ~Grinder();
 
       static void fillDescriptions(edm::ConfigurationDescriptions& descriptions);
-      void beginRun(edm::Run const &, edm::EventSetup const &setup);
 
    private:
       virtual void beginJob() override;
+      virtual void beginRun(edm::Run const&,  edm::EventSetup const&) override;
       virtual void analyze(const edm::Event&, const edm::EventSetup&) override;
+      virtual void endRun(edm::Run const&, edm::EventSetup const&)override;
       virtual void endJob() override;
 
       // ----------member data ---------------------------
@@ -94,6 +97,7 @@ class Grinder : public edm::one::EDAnalyzer<edm::one::SharedResources>  {
       edm::EDGetTokenT<pat::PackedTriggerPrescales> triggerPrescales_L1T_token;
       edm::EDGetTokenT<pat::PackedTriggerPrescales> triggerPrescales_HLT_token;
       edm::EDGetTokenT<edm::TriggerResults>         metFilterResultsToken;
+      edm::EDGetTokenT<GenEventInfoProduct>         genToken;
 
       edm::EDGetTokenT<reco::VertexCollection> primaryVerticesToken;
       edm::EDGetTokenT<std::vector<PileupSummaryInfo>> puSummaryToken;
@@ -201,6 +205,9 @@ Grinder::Grinder(const edm::ParameterSet& iConfig) :
   // read trigger options
   do_trigger_filtering = iConfig.getParameter<bool>("do_trigger_filtering");
 
+  // read MC options
+  genToken = consumes<GenEventInfoProduct> (iConfig.getParameter<edm::InputTag>( "generator_token") ) ;
+
   // read Photons options
   photonToken   = consumes<edm::View<pat::Photon>>(iConfig.getParameter<edm::InputTag>("photons_token"));
   photon_loose_id_token  = iConfig.getParameter<std::string>("photon_loose_id_token");
@@ -225,13 +232,16 @@ Grinder::Grinder(const edm::ParameterSet& iConfig) :
   // https://twiki.cern.ch/twiki/bin/view/CMS/JECUncertaintySources#Recommendation_for_analysis
   jet_type_label = iConfig.getParameter<std::string>("jet_type_label");
   if(era_label == "2016"){
-    jecUnc_names = {"Total", "SubTotalMC", "SubTotalAbsolute", "SubTotalScale", "SubTotalPt", "SubTotalRelative", "SubTotalPileUp", "FlavorQCD", "TimePtEta"};
+    // jecUnc_names = {"Total", "SubTotalMC", "SubTotalAbsolute", "SubTotalScale", "SubTotalPt", "SubTotalRelative", "SubTotalPileUp", "FlavorQCD", "TimePtEta"};
+    jecUnc_names = {"Uncertainty"};
   }
   if(era_label == "2017"){
-    jecUnc_names = {"Total", "SubTotalMC", "SubTotalAbsolute", "SubTotalScale", "SubTotalPt", "SubTotalRelative", "SubTotalPileUp", "FlavorQCD", "TimePtEta"};
+    // jecUnc_names = {"Total", "SubTotalMC", "SubTotalAbsolute", "SubTotalScale", "SubTotalPt", "SubTotalRelative", "SubTotalPileUp", "FlavorQCD", "TimePtEta"};
+    jecUnc_names = {"Uncertainty"};
   }
   if(era_label == "2018"){
-    jecUnc_names = {"Total", "SubTotalMC", "SubTotalAbsolute", "SubTotalScale", "SubTotalPt", "SubTotalRelative", "SubTotalPileUp", "FlavorQCD", "TimePtEta"};
+    // jecUnc_names = {"Total", "SubTotalMC", "SubTotalAbsolute", "SubTotalScale", "SubTotalPt", "SubTotalRelative", "SubTotalPileUp", "FlavorQCD", "TimePtEta"};
+    jecUnc_names = {"Uncertainty"};
   }
 
   for(auto item : jecUnc_names){
@@ -288,6 +298,9 @@ Grinder::~Grinder(){}
 
 void Grinder::analyze(const edm::Event& iEvent, const edm::EventSetup& iSetup){
   using namespace edm;
+  #ifdef DEBUG_GRINDER
+    std::cout << "Grinder::analyze() ... " << std::endl;
+  #endif
 
   // Remove Info from previous events ========================================================================================================
   jets.clear();
@@ -314,11 +327,19 @@ void Grinder::analyze(const edm::Event& iEvent, const edm::EventSetup& iSetup){
   iEvent.getByToken(rhoCentralToken, rhoCentral);
   event.angular_pt_density_central = (*rhoCentral);
 
+  #ifdef DEBUG_GRINDER
+    std::cout << "Run/Lumi/Event " << event.run << "/" << event.lumi << "/" << event.event << std::endl;
+  #endif
+
   // weights ========================================================================================================
   // https://twiki.cern.ch/twiki/bin/viewauth/CMS/LHEReaderCMSSW#Retrieving_the_weights
   if(not iEvent.isRealData()){
+    #ifdef DEBUG_GRINDER
+      std::cout << "weights ... " << std::endl;
+    #endif
     edm::Handle<GenEventInfoProduct> genEvtInfo; 
-    iEvent.getByLabel( "generator", genEvtInfo );
+    // iEvent.getByLabel( "generator", genEvtInfo );
+    iEvent.getByToken(genToken, genEvtInfo);
 
     // https://twiki.cern.ch/twiki/bin/view/CMSPublic/SWGuideDataFormatGeneratorInterface?redirectedfrom=CMS.SWGuideDataFormatGeneratorInterface
     // use only one weight 
@@ -347,6 +368,9 @@ void Grinder::analyze(const edm::Event& iEvent, const edm::EventSetup& iSetup){
   }
 
   // Trigger filter ========================================================================================================
+  #ifdef DEBUG_GRINDER
+    std::cout << "Trigger filters ... " << std::endl;
+  #endif
   edm::Handle<edm::TriggerResults> triggerResults;
   edm::Handle<pat::PackedTriggerPrescales> triggerPrescales_L1T;
   edm::Handle<pat::PackedTriggerPrescales> triggerPrescales_HLT;
@@ -400,6 +424,9 @@ void Grinder::analyze(const edm::Event& iEvent, const edm::EventSetup& iSetup){
   */
 
   // Read primary vertices collection ========================================================================================================
+  #ifdef DEBUG_GRINDER
+    std::cout << "Read primary vertices collection ... " << std::endl;
+  #endif
   edm::Handle<reco::VertexCollection> vertices;
   iEvent.getByToken(primaryVerticesToken, vertices);
   if (vertices->size() == 0){
@@ -413,6 +440,9 @@ void Grinder::analyze(const edm::Event& iEvent, const edm::EventSetup& iSetup){
   // Pile-Up Info ========================================================================================================
   // https://twiki.cern.ch/twiki/bin/view/CMS/Pileup_MC_Information
   // uncertanties calc at the next step https://twiki.cern.ch/twiki/bin/view/CMS/PileupSystematicErrors
+  #ifdef DEBUG_GRINDER
+    std::cout << "Read Pile-Up Info ... " << std::endl;
+  #endif
   if(not iEvent.isRealData()){
     edm::Handle<std::vector<PileupSummaryInfo> > puSummary;
     iEvent.getByToken(puSummaryToken, puSummary);
@@ -428,6 +458,9 @@ void Grinder::analyze(const edm::Event& iEvent, const edm::EventSetup& iSetup){
   }
 
   // Iterate over photons ========================================================================================================
+  #ifdef DEBUG_GRINDER
+    std::cout << "Iterate over photons ... " << std::endl;
+  #endif
   edm::Handle<edm::View<pat::Photon>> srcPhotons;
   iEvent.getByToken(photonToken, srcPhotons);
   for (unsigned i = 0; i < srcPhotons->size(); ++i){
@@ -486,6 +519,9 @@ void Grinder::analyze(const edm::Event& iEvent, const edm::EventSetup& iSetup){
   }
 
   // iterate over electrons ========================================================================================================
+  #ifdef DEBUG_GRINDER
+    std::cout << "iterate over electrons ... " << std::endl;
+  #endif
   edm::Handle<edm::View<pat::Electron>> srcElectrons;
   iEvent.getByToken(electronToken, srcElectrons);
   for (unsigned i = 0; i < srcElectrons->size(); ++i){
@@ -538,6 +574,9 @@ void Grinder::analyze(const edm::Event& iEvent, const edm::EventSetup& iSetup){
   }
 
   // iterate over muons ========================================================================================================
+  #ifdef DEBUG_GRINDER
+    std::cout << "iterate over muons ... " << std::endl;
+  #endif
   edm::Handle<edm::View<pat::Muon>> srcMuons;
   iEvent.getByToken(muonToken, srcMuons);
 
@@ -572,14 +611,23 @@ void Grinder::analyze(const edm::Event& iEvent, const edm::EventSetup& iSetup){
   }
 
   // Gen jets ========================================================================================================
+  #ifdef DEBUG_GRINDER
+    std::cout << "Gen jets ... " << std::endl;
+  #endif
   edm::Handle<edm::View<reco::GenJet>> genJets;
   if(not iEvent.isRealData())
     iEvent.getByToken(genJetToken, genJets);
 
-  // iterate over AK4 PF CHS jets
+  // iterate over AK4 PF CHS jets ========================================================================================================
+  #ifdef DEBUG_GRINDER
+    std::cout << "iterate over AK4 PF CHS jets ... " << std::endl;
+  #endif
   edm::Handle<edm::View<pat::Jet>> srcJets;
   iEvent.getByToken(jetToken, srcJets);
   for (unsigned i = 0; i < srcJets->size(); ++i){
+    #ifdef DEBUG_GRINDER
+      std::cout << "jets N " << i << std::endl;
+    #endif
     pat::Jet const &j = srcJets->at(i);
 
     // RAW P4 vector 
@@ -597,12 +645,10 @@ void Grinder::analyze(const edm::Event& iEvent, const edm::EventSetup& iSetup){
       JetCorrectionUncertainty * jecUnc_ptr = jecUnc_v[i];
       jecUnc_ptr->setJetEta( j.eta() );
       jecUnc_ptr->setJetPt(  j.pt()  );
-      jet.JEC_unc_v_u[i] = jecUnc->getUncertainty(true);  // FIXME not filled !!!
+      jet.JEC_unc_v_u[i] = jecUnc_ptr->getUncertainty(true);  // FIXME not filled !!!
       jecUnc_ptr->setJetEta( j.eta() );
       jecUnc_ptr->setJetPt(  j.pt()  ); 
-      jet.JEC_unc_v_d[i] = jecUnc->getUncertainty(false); // FIXME not filled !!!
-
-      // std::cout << jecUnc->getUncertainty(true) << std::endl;
+      jet.JEC_unc_v_d[i] = jecUnc_ptr->getUncertainty(false); // FIXME not filled !!!
     }
     double JEC_uncertanty = std::max( jet.JEC_unc_v_u.at( 0 ), jet.JEC_unc_v_d.at( 0 ) );
     JEC_uncertanty = std::max(JEC_uncertanty, 0.);
@@ -614,7 +660,9 @@ void Grinder::analyze(const edm::Event& iEvent, const edm::EventSetup& iSetup){
       jerResolution_parameters.setJetPt(j.pt()).setJetEta(j.eta());
       jerScaleFactor_parameters.setJetEta(j.eta()).setRho( *rho );
 
-      jet.resolution = jerResolution.getResolution( jerResolution_parameters );
+      // jet.resolution = jerResolution.getResolution( jerResolution_parameters );
+      jet.resolution = jerResolution.getResolution( {{JME::Binning::JetPt, j.pt()}, {JME::Binning::JetEta, j.eta()}, {JME::Binning::Rho, *rho}} );
+
       jet.sf         = jerScaleFactor.getScaleFactor(jerScaleFactor_parameters);
       jet.sf_u       = jerScaleFactor.getScaleFactor(jerScaleFactor_parameters, Variation::UP);
       jet.sf_d       = jerScaleFactor.getScaleFactor(jerScaleFactor_parameters, Variation::DOWN);
@@ -682,13 +730,13 @@ void Grinder::analyze(const edm::Event& iEvent, const edm::EventSetup& iSetup){
     // DeepCSV
     jet.pfDeepCSVJetTags_probb    = j.bDiscriminator("pfDeepCSVJetTags:probb");
     jet.pfDeepCSVJetTags_probbb   = j.bDiscriminator("pfDeepCSVJetTags:probbb");
-    jet.pfDeepCSVJetTags_probc    = j.bDiscriminator("pfDeepCSVJetTags_probc");
+    jet.pfDeepCSVJetTags_probc    = j.bDiscriminator("pfDeepCSVJetTags:probc");
     jet.pfDeepCSVJetTags_probudsg = j.bDiscriminator("pfDeepCSVJetTags:probudsg");
 
     // DeepJet FIXME not working for b tag
-    jet.pfDeepFlavourJetTags_probb    = j.bDiscriminator("pfDeepFlavourJetTags_probb");
-    jet.pfDeepFlavourJetTags_probbb   = j.bDiscriminator("pfDeepFlavourJetTags_probbb");
-    jet.pfDeepFlavourJetTags_problepb = j.bDiscriminator("pfDeepFlavourJetTags_problepb");
+    jet.pfDeepFlavourJetTags_probb    = j.bDiscriminator("pfDeepFlavourJetTags:probb");
+    jet.pfDeepFlavourJetTags_probbb   = j.bDiscriminator("pfDeepFlavourJetTags:probbb");
+    jet.pfDeepFlavourJetTags_problepb = j.bDiscriminator("pfDeepFlavourJetTags:problepb");
     jet.pfDeepFlavourJetTags_probc    = j.bDiscriminator("pfDeepFlavourJetTags:probc");
     jet.pfDeepFlavourJetTags_probuds  = j.bDiscriminator("pfDeepFlavourJetTags:probuds");
     jet.pfDeepFlavourJetTags_probg    = j.bDiscriminator("pfDeepFlavourJetTags:probg");
@@ -709,6 +757,9 @@ void Grinder::analyze(const edm::Event& iEvent, const edm::EventSetup& iSetup){
   }
 
   // iterate over MET ========================================================================================================
+  #ifdef DEBUG_GRINDER
+    std::cout << "iterate over MET ... " << std::endl;
+  #endif
   Handle<View<pat::MET>> metHandle;
   iEvent.getByToken(metToken, metHandle);
   pat::MET const & srcMET = metHandle->front();
@@ -759,7 +810,7 @@ void Grinder::analyze(const edm::Event& iEvent, const edm::EventSetup& iSetup){
     else if( filter_names.triggerName(i) == "Flag_BadPFMuonFilter" )                     met.Flag_BadPFMuonFilter                    = true ; 
     else if( filter_names.triggerName(i) == "Flag_BadChargedCandidateFilter" )           met.Flag_BadChargedCandidateFilter          = true ; 
     else if( filter_names.triggerName(i) == "Flag_eeBadScFilter" )                       met.Flag_eeBadScFilter                      = true ;
-    else if( filter_names.triggerName(i) == "Flag_ecalBadCalibReducedMINIAODFilter" )    met.Flag_ecalBadCalibReducedMINIAODFilter   = true ; // FIXME need to re-run filter
+    else if( filter_names.triggerName(i) == "Flag_ecalBadCalibReducedMINIAODFilter" )    met.Flag_ecalBadCalibReducedMINIAODFilter   = true ; // need to re-run filter
   }
 
   // re-run MET filter for "Flag_ecalBadCalibReducedMINIAODFilter"
@@ -771,26 +822,42 @@ void Grinder::analyze(const edm::Event& iEvent, const edm::EventSetup& iSetup){
   // TODO skipped for this analyses
 
   // Fill the output tree
+  #ifdef DEBUG_GRINDER
+    std::cout << "Fill the output tree ... " << std::endl;
+  #endif
   outTree->Fill();
 }
 
 // ------------ method called when starting to processes a run  ------------
-void Grinder::beginRun(edm::Run const &, edm::EventSetup const &setup){
+void Grinder::beginRun(edm::Run const & run, edm::EventSetup const & setup){
+  #ifdef DEBUG_GRINDER
+    std::cout << "Grinder::beginRun ... " << std::endl;
+  #endif
+
   // Construct an object to obtain JEC uncertainty
   // https://twiki.cern.ch/twiki/bin/view/CMSPublic/WorkBookJetEnergyCorrections?rev=137#JetCorUncertainties
+  jecUnc_v.clear();
   edm::ESHandle<JetCorrectorParametersCollection> JetCorParColl;
   setup.get<JetCorrectionsRecord>().get(jet_type_label, JetCorParColl); 
   for(std::string name : jecUnc_names){
     JetCorrectorParameters const & JetCorPar = (*JetCorParColl)[ name.c_str() ];
     jecUnc_v.push_back( new JetCorrectionUncertainty(JetCorPar) );
   }
+
   // Objects that provide jet energy resolution and its scale factors
   // https://twiki.cern.ch/twiki/bin/view/CMSPublic/WorkBookJetEnergyResolution#Jet_resolution
   // jerResolution_ptr.reset(  new JME::JetResolution(           std::move(JME::JetResolution::get(setup,            "AK4PFchs_pt"))));
   // jerScaleFactor_ptr.reset( new JME::JetResolutionScaleFactor(std::move(JME::JetResolutionScaleFactor::get(setup, "AK4PFchs"   ))));
   jerResolution  = JME::JetResolution::get(setup,            "AK4PFchs_pt" );
   jerScaleFactor = JME::JetResolutionScaleFactor::get(setup, "AK4PFchs"    );
+
+  #ifdef DEBUG_GRINDER
+    
+    JME::JetResolution::get(setup,            "AK4PFchs_pt" ).dump();
+  #endif
 }
+
+void Grinder::endRun(edm::Run const& run, edm::EventSetup const& setup){};
 
 // ------------ method called once each job just before starting event loop  ------------
 void Grinder::beginJob(){

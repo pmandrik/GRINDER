@@ -33,7 +33,7 @@ if IS_DATA :
   if YEAR_ERA == "2017": process.source.fileNames = cms.untracked.vstring('file:/eos/cms/store/data/Run2017C/DoubleEG/MINIAOD/31Mar2018-v1/00000/72D2823F-3B38-E811-9260-7CD30ABD2EE8.root')
   if YEAR_ERA == "2018": process.source.fileNames = cms.untracked.vstring('file:/eos/cms/store/data/Run2018C/EGamma/MINIAOD/17Sep2018-v1/00000/91003A57-CDF4-134E-8CAB-D2B86D95B1E5.root')
 else:
-  if YEAR_ERA == "2016": process.source.fileNames = cms.untracked.vstring('file:/eos/cms/store/mc/RunIISummer16MiniAODv3/...')
+  if YEAR_ERA == "2016": process.source.fileNames = cms.untracked.vstring('file:/eos/cms/store/mc/RunIISummer16MiniAODv3/DYJetsToLL_M-50_TuneCUETP8M1_13TeV-amcatnloFXFX-pythia8/MINIAODSIM/PUMoriond17_94X_mcRun2_asymptotic_v3_ext2-v1/100000/A81C492E-56BF-E811-946B-008CFA0A5A10.root')
   if YEAR_ERA == "2017": process.source.fileNames = cms.untracked.vstring('file:/eos/cms/store/mc/RunIIFall17MiniAODv2/...')
   if YEAR_ERA == "2018": process.source.fileNames = cms.untracked.vstring('file:/eos/cms/store/mc/RunIIAutumn18MiniAOD/...')
 
@@ -201,7 +201,7 @@ process.grinderMain = cms.EDAnalyzer('Grinder',
   is_data              = cms.bool( IS_DATA ),
   era_label            = cms.string( YEAR_ERA ),
   primaryVertex_token  = cms.InputTag('offlineSlimmedPrimaryVertices'),
-  puSummaryToken_token = cms.InputTag('addPileupInfo'),
+  puSummaryToken_token = cms.InputTag('slimmedAddPileupInfo'), # cms.InputTag('addPileupInfo'),
   rho_token            = cms.InputTag("fixedGridRhoFastjetAll"),
   rho_central_token    = cms.InputTag("fixedGridRhoFastjetCentral"),
   # trigger
@@ -235,8 +235,9 @@ process.grinderMain = cms.EDAnalyzer('Grinder',
   metFilterResults_token = cms.InputTag("TriggerResults","","RECO") if IS_DATA else cms.InputTag("TriggerResults","","PAT"),
   # taus
   taus_token    = cms.InputTag('slimmedTaus'),
-  # genjets
-  genjets_token = cms.InputTag('slimmedGenJets'),
+  # mc, genjets
+  generator_token = cms.InputTag('generator'),
+  genjets_token   = cms.InputTag('slimmedGenJets'),
   # cuts are a little bit weaker than the cuts from the articles
   # https://arxiv.org/pdf/1804.02716.pdf
   cut_photon_pt  = cms.double(17.5),

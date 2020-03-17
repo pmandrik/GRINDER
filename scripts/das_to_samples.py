@@ -49,6 +49,12 @@ def das_to_samples_v2( datasets_pattern ):
   print "============================================= v2"
   datasets = []
   answer = get_data( "dataset dataset=" + datasets_pattern )
+
+  try: 
+    data = answer['data']
+  except : 
+    print answer
+
   for item in answer['data']:
     datasets += [ item['dataset'][0]['name'] ]
   for dataset in sorted(datasets):
@@ -63,7 +69,7 @@ if False:
   das_to_samples_v2("/EGamma/Run2018*-17Sep2018*/MINIAOD")
   das_to_samples_v2("/EGamma/Run2018*-22Jan2019*/MINIAOD")
 
-if True:
+if False:
   # https://twiki.cern.ch/twiki/bin/view/CMS/Higgs2GGen
   print "\n\n\n MC Higgs -> yy", "ggF VBF VH ttH"
   print "2016 =========================================="
@@ -88,7 +94,8 @@ if True:
   das_to_samples_v2("/VHToGG*M125*13TeV*/RunIIAutumn18MiniAOD-*/MINIAODSIM") # VH
 
 
-
+if True:
+  das_to_samples_v2("/*HHTo*2G*/*/MINIAODSIM")
 
 
 
