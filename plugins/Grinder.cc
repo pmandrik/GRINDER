@@ -309,10 +309,8 @@ void Grinder::analyze(const edm::Event& iEvent, const edm::EventSetup& iSetup){
   electrons.clear();
   event.weights.clear();
   event.ps_weights.clear();
-  met.pt_unc_v_u.clear();
-  met.pt_unc_v_d.clear();
-  met.phi_unc_v_u.clear();
-  met.phi_unc_v_d.clear();
+  met.pt_unc_v.clear();
+  met.phi_unc_v.clear();
 
   // Set Event Info ========================================================================================================
   event.run   = iEvent.id().run();
@@ -779,12 +777,11 @@ void Grinder::analyze(const edm::Event& iEvent, const edm::EventSetup& iSetup){
       met.gen_pt  = srcMET.genMET()->pt() ;
       met.gen_phi = srcMET.genMET()->phi();
 
+      // https://github.com/cms-sw/cmssw/blob/CMSSW_8_0_X/DataFormats/PatCandidates/interface/MET.h#L151-L168
       using Var = pat::MET::METUncertainty;
       for (Var const & var : {Var::JetEnUp, Var::JetEnDown, Var::JetResUp, Var::JetResDown, Var::UnclusteredEnUp, Var::UnclusteredEnDown}) {
-        met.pt_unc_v_u.push_back(  srcMET.shiftedPt(var, pat::MET::Type1) ); 
-        met.pt_unc_v_d.push_back(  srcMET.shiftedPt(var, pat::MET::Type1) );
-        met.phi_unc_v_u.push_back( srcMET.shiftedPhi(var, pat::MET::Type1) ); 
-        met.phi_unc_v_d.push_back( srcMET.shiftedPhi(var, pat::MET::Type1) ); 
+        met.pt_unc_v.push_back(  srcMET.shiftedPt(var, pat::MET::Type1) ); 
+        met.phi_unc_v.push_back( srcMET.shiftedPhi(var, pat::MET::Type1) ); 
       }
   }
 

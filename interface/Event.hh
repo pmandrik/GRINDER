@@ -48,8 +48,7 @@ namespace grinder{
   class MET{
     public:
     Float_t pt, eta, phi, gen_pt, gen_phi, significance;
-    std::vector<Float_t> pt_unc_v_u, pt_unc_v_d;
-    std::vector<Float_t> phi_unc_v_u, phi_unc_v_d;
+    std::vector<Float_t> pt_unc_v, phi_unc_v;
     Bool_t Flag_goodVertices, Flag_globalSuperTightHalo2016Filter, Flag_HBHENoiseFilter, Flag_HBHENoiseIsoFilter;
     Bool_t Flag_EcalDeadCellTriggerPrimitiveFilter, Flag_BadPFMuonFilter, Flag_BadChargedCandidateFilter, Flag_eeBadScFilter, Flag_ecalBadCalibReducedMINIAODFilter;
   };
