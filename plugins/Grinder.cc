@@ -667,6 +667,7 @@ void Grinder::analyze(const edm::Event& iEvent, const edm::EventSetup& iSetup){
       jet.sf_u       = jerScaleFactor.getScaleFactor(jerScaleFactor_parameters, Variation::UP);
       jet.sf_d       = jerScaleFactor.getScaleFactor(jerScaleFactor_parameters, Variation::DOWN);
 
+      // https://twiki.cern.ch/twiki/bin/view/CMS/JetResolution#Smearing_procedures
       // https://twiki.cern.ch/twiki/bin/view/CMS/JetResolution?rev=54#Smearing_procedures
       // https://github.com/cms-sw/cmssw/blob/CMSSW_8_0_18/PhysicsTools/PatUtils/interface/SmearedJetProducerT.h#L236-L237
       reco::GenJet const * genJet = MatchGenJet( j, genJets, 3 * jet.resolution * j.pt() );
@@ -686,10 +687,15 @@ void Grinder::analyze(const edm::Event& iEvent, const edm::EventSetup& iSetup){
     if( rawP4.pt()  < cut_jet_pt and jet_maxPt < cut_jet_pt ) continue;
     if( TMath::Abs(rawP4.eta()) > cut_jet_eta ) continue;
 
-    jet.pt  = rawP4.pt();
-    jet.eta = rawP4.eta();
-    jet.phi = rawP4.phi();
-    jet.m   = rawP4.mass();
+    jet.pt  = j.pt();
+    jet.eta = j.eta();
+    jet.phi = j.phi();
+    jet.m   = j.mass();
+
+    jet.ptRaw  = rawP4.pt();
+    jet.etaRaw = rawP4.eta();
+    jet.phiRaw = rawP4.phi();
+    jet.mRaw   = rawP4.mass();
 
     jet.charge = j.jetCharge();
     jet.area   = j.jetArea();
@@ -774,7 +780,7 @@ void Grinder::analyze(const edm::Event& iEvent, const edm::EventSetup& iSetup){
       met.gen_phi = srcMET.genMET()->phi();
 
       using Var = pat::MET::METUncertainty;
-      for (Var const &var: {Var::JetEnUp, Var::JetEnDown, Var::JetResUp, Var::JetResDown, Var::UnclusteredEnUp, Var::UnclusteredEnDown}) {
+      for (Var const & var : {Var::JetEnUp, Var::JetEnDown, Var::JetResUp, Var::JetResDown, Var::UnclusteredEnUp, Var::UnclusteredEnDown}) {
         met.pt_unc_v_u.push_back(  srcMET.shiftedPt(var, pat::MET::Type1) ); 
         met.pt_unc_v_d.push_back(  srcMET.shiftedPt(var, pat::MET::Type1) );
         met.phi_unc_v_u.push_back( srcMET.shiftedPhi(var, pat::MET::Type1) ); 
@@ -810,7 +816,7 @@ void Grinder::analyze(const edm::Event& iEvent, const edm::EventSetup& iSetup){
     else if( filter_names.triggerName(i) == "Flag_BadPFMuonFilter" )                     met.Flag_BadPFMuonFilter                    = true ; 
     else if( filter_names.triggerName(i) == "Flag_BadChargedCandidateFilter" )           met.Flag_BadChargedCandidateFilter          = true ; 
     else if( filter_names.triggerName(i) == "Flag_eeBadScFilter" )                       met.Flag_eeBadScFilter                      = true ;
-    else if( filter_names.triggerName(i) == "Flag_ecalBadCalibReducedMINIAODFilter" )    met.Flag_ecalBadCalibReducedMINIAODFilter   = true ; // need to re-run filter
+    else if( filter_names.triggerName(i) == "Flag_ecalBadCalibReducedMINIAODFilter" )    met.Flag_ecalBadCalibReducedMINIAODFilter   = true ;
   }
 
   // re-run MET filter for "Flag_ecalBadCalibReducedMINIAODFilter"

@@ -1,7 +1,7 @@
 
 import FWCore.ParameterSet.Config as cms
 
-### Options
+### Options ########################################################################################################################
 from FWCore.ParameterSet.VarParsing import VarParsing
 options = VarParsing('analysis')
 
@@ -22,7 +22,7 @@ process.TFileService = cms.Service('TFileService', fileName = cms.string('grinde
 
 process.load("FWCore.MessageService.MessageLogger_cfi")
 
-### Input
+### Input ########################################################################################################################
 # pathes from https://twiki.cern.ch/twiki/bin/view/CMS/EgHLTRunIISummary
 # 2016 - DoubleEG
 # 2017 - DoubleEG
@@ -40,7 +40,7 @@ else:
 process.maxEvents = cms.untracked.PSet( input = cms.untracked.int32(-1) )
 # process.maxEvents = cms.untracked.PSet( input = cms.untracked.int32(500) )
 
-### Global Tag Options
+### Global Tag Options ########################################################################################################################
 # https://twiki.cern.ch/twiki/bin/viewauth/CMS/PdmVAnalysisSummaryTable
 # https://twiki.cern.ch/twiki/bin/view/CMSPublic/WorkBookJetEnergyCorrections#JecGlobalTag
 GT_name = ""
@@ -59,7 +59,7 @@ process.load("Configuration.StandardSequences.FrontierConditions_GlobalTag_cff")
 #process.GlobalTag = GlobalTag(process.GlobalTag, GT_name, '')
 process.GlobalTag.globaltag = GT_name
 
-### Trigger options
+### Trigger options ########################################################################################################################
 # https://twiki.cern.ch/twiki/bin/view/CMS/TriggerStudies
 selections_triggers = []
 if YEAR_ERA == "2016":
@@ -87,7 +87,7 @@ if YEAR_ERA == "2018":
                           'HLT_DoublePhoton85',
                           'HLT_Photon100EE_TightID_TightIso']
 
-### Setup Electron / Photon sequence
+### Setup Electron / Photon sequence ########################################################################################################################
 # https://twiki.cern.ch/twiki/bin/view/CMS/EgammaMiniAODV2#2018_MiniAOD
 from RecoEgamma.EgammaTools.EgammaPostRecoTools import setupEgammaPostRecoSeq
 if YEAR_ERA == "2016":
@@ -97,7 +97,7 @@ if YEAR_ERA == "2017":
 if YEAR_ERA == "2018":
   setupEgammaPostRecoSeq(process,era='2018-Prompt')  
 
-### Photons options
+### Photons options ########################################################################################################################
 # https://twiki.cern.ch/twiki/bin/view/CMS/CutBasedPhotonIdentificationRun2#Photon_ID_Working_Points_WP_defi
 # https://twiki.cern.ch/twiki/bin/view/CMS/EgammaMiniAODV2#ID_information
 # https://twiki.cern.ch/twiki/bin/view/CMS/MultivariatePhotonIdentificationRun2#Recommended_MVA_Recipe_for_regul <- Fallv2
@@ -134,7 +134,7 @@ if YEAR_ERA == "2018":
   effAreaPho    = "RecoEgamma/PhotonIdentification/data/Fall17/effAreaPhotons_cone03_pfPhotons_90percentBased_V2.txt"
   
   
-### Electrons options
+### Electrons options ########################################################################################################################
 # https://twiki.cern.ch/twiki/bin/view/CMS/CutBasedElectronIdentificationRun2#Recipe_for_regular_users_formats
 if YEAR_ERA == "2016":
   electron_loose_id  = "cutBasedElectronID-Fall17-94X-V1-loose"
@@ -153,15 +153,18 @@ if YEAR_ERA == "2018":
 # https://twiki.cern.ch/twiki/bin/view/CMS/EgammaIDRecipesRun2#Electron_efficiencies_and_scale
 # Resolution / Correction
 
-### Jets options
+### Jets options ########################################################################################################################
 # re-apply JEC
 # https://twiki.cern.ch/twiki/bin/view/CMSPublic/WorkBookJetEnergyCorrections?rev=139#CorrPatJets
 from PhysicsTools.PatAlgos.tools.jetTools import updateJetCollection
+jetCorrections_ = ('AK4PFchs', cms.vstring(['L1FastJet', 'L2Relative', 'L3Absolute']), 'None')
+if IS_DATA : 
+  jetCorrections_ = ('AK4PFchs', cms.vstring(['L1FastJet', 'L2L3Residual', 'L2Relative', 'L3Absolute']), 'None') # Do not forget 'L2L3Residual' on data!
 updateJetCollection(
   process,
   jetSource = cms.InputTag('slimmedJets'),
   labelName = 'UpdatedJEC', # -> updatedPatJetsUpdatedJEC
-  jetCorrections = ('AK4PFchs', cms.vstring(['L1FastJet', 'L2Relative', 'L3Absolute']), 'None')  # Do not forget 'L2L3Residual' on data!
+  jetCorrections = jetCorrections_  
 )
 
 
@@ -171,7 +174,20 @@ if YEAR_ERA == "2016":
 if YEAR_ERA == "2017":
   pass
 
-### MET options
+### MET options ########################################################################################################################
+# update MET due to JEC
+# https://twiki.cern.ch/twiki/bin/view/CMS/MissingET
+# https://twiki.cern.ch/twiki/bin/view/CMS/MissingETUncertaintyPrescription#A_tool_to_help_you_calculate_MET
+from PhysicsTools.PatUtils.tools.runMETCorrectionsAndUncertainties import runMetCorAndUncFromMiniAOD
+runMetCorAndUncFromMiniAOD(
+  process,
+  isData=IS_DATA,
+  jetCollUnskimmed="updatedPatJetsUpdatedJEC",
+  reapplyJEC=False,
+  ### fixEE2017=self.doMETfix, FIXME
+)
+METTag = cms.InputTag('slimmedMETs','',process.name_())
+
 # set-up filter https://twiki.cern.ch/twiki/bin/viewauth/CMS/MissingETOptionalFiltersRun2#How_to_run_ecal_BadCalibReducedM
 process.load('RecoMET.METFilters.ecalBadCalibFilter_cfi')
 baddetEcallist = cms.vuint32( [872439604,872422825,872420274,872423218,872423215,872416066,872435036,872439336, 872420273,872436907,872420147,872439731,872436657,872420397,872439732,872439339, 872439603,872422436,872439861,872437051,872437052,872420649,872421950,872437185, 872422564,872421566,872421695,872421955,872421567,872437184,872421951,872421694, 872437056,872437057,872437313,872438182,872438951,872439990,872439864,872439609, 872437181,872437182,872437053,872436794,872436667,872436536,872421541,872421413, 872421414,872421031,872423083,872421439] )
@@ -190,12 +206,12 @@ process.ecalBadCalibReducedMINIAODFilter = cms.EDFilter(
     debug = cms.bool(False)
     )
 
-### Extra paths
+### Extra paths ########################################################################################################################
 if DEBUG_print_content:
   process.content = cms.EDAnalyzer("EventContentAnalyzer")
   process.path += process.content
 
-### Main path
+### Main path ########################################################################################################################
 process.grinderMain = cms.EDAnalyzer('Grinder',
   # events info
   is_data              = cms.bool( IS_DATA ),
@@ -256,7 +272,7 @@ process.grinderMain = cms.EDAnalyzer('Grinder',
 
 process.content = cms.EDAnalyzer("EventContentAnalyzer")
 # process.path += process.content
-process.path += process.ecalBadCalibReducedMINIAODFilter * process.patJetCorrFactorsUpdatedJEC * process.updatedPatJetsUpdatedJEC * process.grinderMain
+process.path += process.ecalBadCalibReducedMINIAODFilter * process.patJetCorrFactorsUpdatedJEC * process.updatedPatJetsUpdatedJEC * process.fullPatMetSequence * process.grinderMain
 
 
 
