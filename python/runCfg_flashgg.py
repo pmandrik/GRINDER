@@ -96,14 +96,26 @@ else:
     process.GlobalTag.globaltag = str(customize.metaConditions['globalTags']['MC'])
 
 from flashgg.Systematics.SystematicsCustomize import *
-jetSystematicsInputTags = createStandardSystematicsProducers(process , customize)
-# print'jetSystematicsInputTags = ',jetSystematicsInputTags
-# jetSystematicsInputTags = None 
-if dropVBFInNonGold:
-    process.flashggVBFTag.SetArbitraryNonGoldMC = True
-    process.flashggVBFTag.DropNonGoldData = True
+if True : # jetSystematicsInputTags = createStandardSystematicsProducers(process , customize)
+    print "Keep only di-photon systematics ... "
+    process.load("flashgg/Taggers/flashggTagSequence_cfi")
+    process.load("flashgg.Systematics.flashggDiPhotonSystematics_cfi")
 
-modifyTagSequenceForSystematics(process,jetSystematicsInputTags) # normally uncommented 
+    from flashgg.Taggers.flashggTagSequence_cfi import *
+    process.flashggTagSequence = flashggPrepareTagSequence(process, customize.metaConditions)
+    
+    import flashgg.Systematics.flashggDiPhotonSystematics_cfi as diPhotons_syst
+    diPhotons_syst.setupDiPhotonSystematics( process, customize )
+
+if True : # modifyTagSequenceForSystematics(process,jetSystematicsInputTags) # normally uncommented 
+    process.flashggTagSequence.remove(process.flashggUnpackedJets) # to avoid unnecessary cloning
+    process.flashggTagSequence.remove(process.flashggDifferentialPhoIdInputsCorrection) # Needs to be run before systematics
+    from PhysicsTools.PatAlgos.tools.helpers import cloneProcessingSnippet,massSearchReplaceAnyInputTag
+    massSearchReplaceAnyInputTag(process.flashggTagSequence,cms.InputTag("flashggDifferentialPhoIdInputsCorrection"),cms.InputTag("flashggDiPhotonSystematics"))
+    from flashgg.Taggers.flashggTags_cff import UnpackedJetCollectionVInputTag
+    
+    process.systematicsTagSequences = cms.Sequence()
+
 
 print "======================================================> 3"
 
@@ -160,9 +172,9 @@ if customize.doHHWWggTag:
       electron_medium_id = "cutBasedElectronID-Fall17-94X-V1-medium"
       electron_tight_id  = "cutBasedElectronID-Fall17-94X-V1-tight"
     if YEAR_ERA == "2017":
-      electron_loose_id  = "cutBasedElectronID-Fall17-94X-V1-loose"  # FIXME cutBasedElectronID-Fall17-94X-V2-loose not available !!!
-      electron_medium_id = "cutBasedElectronID-Fall17-94X-V1-medium"
-      electron_tight_id  = "cutBasedElectronID-Fall17-94X-V1-tight"
+      electron_loose_id  = "cutBasedElectronID-Fall17-94X-V2-loose"  # FIXME cutBasedElectronID-Fall17-94X-V2-loose not available !!!
+      electron_medium_id = "cutBasedElectronID-Fall17-94X-V2-medium"
+      electron_tight_id  = "cutBasedElectronID-Fall17-94X-V2-tight"
     if YEAR_ERA == "2018":
       electron_loose_id  = "cutBasedElectronID-Fall17-94X-V2-loose"
       electron_medium_id = "cutBasedElectronID-Fall17-94X-V2-medium"
@@ -178,11 +190,16 @@ if customize.doHHWWggTag:
     from flashgg.Taggers.flashggTags_cff import UnpackedJetCollectionVInputTag # should include jet systematics 
     from flashgg.MicroAOD.flashggJets_cfi import  maxJetCollections, flashggDeepCSV
     
+    IS_DATA  = True   # options.isData
+    YEAR_ERA = "2017" # options.yearEra
     process.GrinderflashggHHWWggTag = cms.EDProducer("GrinderFlashggHHWWggTagProducer",
                                     ### NEW VARIABLES =====================================================>
+                                    is_data              = cms.bool( IS_DATA ),
+                                    era_label            = cms.string( YEAR_ERA ),
                                     electron_loose_id_token  = cms.string(electron_loose_id),
                                     electron_medium_id_token = cms.string(electron_medium_id),
                                     electron_tight_id_token  = cms.string(electron_tight_id),
+                                    puSummaryToken_token = cms.InputTag('slimmedAddPileupInfo'), # cms.InputTag('addPileupInfo'),
                                     ### OLD VARIABLES =====================================================>
                                     globalVariables=globalVariables,
                                     PhotonTag = cms.InputTag('flashggRandomizedPhotons'),
@@ -269,57 +286,6 @@ print 'here we print the tag sequence after'
 print process.flashggTagSequence
 print "customize.processId:",customize.processId
 
-# load appropriate scale and smearing bins here
-# systematics customization scripts will take care of adjusting flashggDiPhotonSystematics
-#process.load("flashgg.Systematics.escales.escale76X_16DecRereco_2015")
-
-# Adding systematics without useEGMTools()
-# sysmodule = importlib.import_module(
-
-
-
-# sysmodule = import_module(
-#     "flashgg.Systematics."+customize.metaConditions["flashggDiPhotonSystematics"])
-# systModules2D = cms.VPSet()
-# systModules = cms.VPSet()
-
-# if customize.processId == "Data":
-#     print'Data'
-#     systModules.append(sysmodule.MCScaleHighR9EB_EGM)
-#     systModules.append(sysmodule.MCScaleLowR9EB_EGM)
-#     systModules.append(sysmodule.MCScaleHighR9EE_EGM)
-#     systModules.append(sysmodule.MCScaleLowR9EE_EGM)
-#     # systModules.append(sysmodule.MCScaleGain6EB_EGM)
-#     # systModules.append(sysmodule.MCScaleGain1EB_EGM)
-
-#     for module in systModules:
-#         module.ApplyCentralValue = cms.bool(True)
-
-# else:
-#     print'Not Data'
-#     # systModules.append(sysmodule.MCScaleHighR9EB_EGM)
-#     # systModules.append(sysmodule.MCScaleLowR9EB_EGM)
-#     # systModules.append(sysmodule.MCScaleHighR9EE_EGM)
-#     # systModules.append(sysmodule.MCScaleLowR9EE_EGM)    
-
-#     # systModules2D.append(sysmodule.MCSmearHighR9EE_EGM)
-#     # systModules2D.append(sysmodule.MCSmearLowR9EE_EGM)
-#     # systModules2D.append(sysmodule.MCSmearHighR9EB_EGM)
-#     # systModules2D.append(sysmodule.MCSmearLowR9EB_EGM)
-
-#     # for module in systModules:
-#         # module.ApplyCentralValue = cms.bool(False)
-
-#     systModules.append(sysmodule.TriggerWeight) # applycentralvalue = true 
-
-
-
-
-# process.flashggDiPhotonSystematics = flashggDiPhotonSystematics
-# process.flashggDiPhotonSystematics.src = "flashggPreselectedDiPhotons"
-# process.flashggDiPhotonSystematics.SystMethods = systModules
-# process.flashggDiPhotonSystematics.SystMethods2D = systModules2D
-
 # Or use the official tool instead
 useEGMTools(process)
 
@@ -337,7 +303,7 @@ is_signal = reduce(lambda y,z: y or z, map(lambda x: customize.processId.count(x
 #if customize.processId.count("h_") or customize.processId.count("vbf_") or customize.processId.count("Acceptance") or customize.processId.count("hh_"): 
 
 print "======================================================> 4"
-if is_signal and False:
+if is_signal or True:
     print "Signal MC, so adding systematics and dZ"
     if customize.doHTXS:
         variablesToUse = minimalVariablesHTXS
@@ -457,7 +423,8 @@ print "======================================================> 5a"
 from flashgg.MetaData.samples_utils import SamplesManager
 print "======================================================> 5b"
 
-process.source = cms.Source ("PoolSource", fileNames = cms.untracked.vstring("file:/afs/cern.ch/work/p/pmandrik/dihiggs/5_microaod/myMicroAODOutputFile.root"))
+# process.source = cms.Source ("PoolSource", fileNames = cms.untracked.vstring("file:/afs/cern.ch/work/p/pmandrik/dihiggs/7_microaod_UL/myMicroAODOutputFile.root"))
+process.source = cms.Source ("PoolSource", fileNames = cms.untracked.vstring("file:/afs/cern.ch/work/p/pmandrik/dihiggs/7_microaod_UL/CMSSW_10_6_8/src/flashgg/myMicroAODOutputFile.root"))
 
 process.TFileService = cms.Service("TFileService",
                                    fileName = cms.string("test.root"))
@@ -550,9 +517,9 @@ if customize.HHWWggTagsOnly or True:
                          process.flashggDiPhotons* # needed for 0th vertex from microAOD
                          process.flashggDifferentialPhoIdInputsCorrection*
                          process.flashggDiPhotonSystematics*
-                         process.flashggMetSystematics*
-                         process.flashggMuonSystematics*process.flashggElectronSystematics*
-                         (process.flashggUnpackedJets*process.jetSystematicsSequence)*
+                         #process.flashggMetSystematics*
+                         #process.flashggMuonSystematics*process.flashggElectronSystematics*
+                         (process.flashggUnpackedJets)* #*process.jetSystematicsSequence)*
                         #  process.content* 
                          process.flashggTagSequence)
 
@@ -602,7 +569,19 @@ for mn in mns:
         print str(module),module.src
     elif hasattr(module,"DiPhotonTag"):
         print str(module),module.DiPhotonTag
-print
+
+
+def printSystematicInfo(process):
+    vpsetlist = [process.flashggDiPhotonSystematics.SystMethods]
+    print (14*"-"+" DUMPING SYSTEMATIC OVERVIEW "+14*"-")
+    print "%20s %15s %20s" % ("Systematic","Central value?","Systematic shifts?")
+    print 57*"-"
+    printSystematicVPSet(vpsetlist)
+    print (13*"-"+" DUMPING 2D SYSTEMATIC OVERVIEW "+12*"-")
+    print "%20s %15s %20s" % ("Systematic","Central value?","Systematic shifts?")
+    print 57*"-"
+    vpsetlist2D  = [process.flashggDiPhotonSystematics.SystMethods2D]
+    printSystematicVPSet(vpsetlist2D)
 printSystematicInfo(process)
 
 # Detailed tag interpretation information printout (blinded)

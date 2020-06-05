@@ -1,6 +1,6 @@
-// Abe Tishelman-Charny
-// November 2019
-// Derived from HH->WWgg event dumper and HH->bbgg tagger 
+// -*- C++ -*-
+
+#define DEBUG_GRINDER 1
 
 #include "FWCore/Framework/interface/EDProducer.h"
 #include "FWCore/Framework/interface/Event.h"
@@ -59,17 +59,8 @@ namespace flashgg {
     //---typedef
     typedef math::XYZTLorentzVector LorentzVector;
 
-    //---ctors
-    // HHWWggTagProducer();
     GrinderHHWWggTagProducer( const ParameterSet & );
 
-    //---Outtree 
-    edm::Service<TFileService> fs;
-    
-    // TH1F* indexes;
-    // TH1F* btags;
-
-  private:
     double genTotalWeight;
     bool checkPassMVAs(const flashgg::Photon*& leading_photon, const flashgg::Photon*& subleading_photon, edm::Ptr<reco::Vertex>& diphoton_vertex);
     void produce( edm::Event &, const EventSetup & ) override;
@@ -175,7 +166,11 @@ namespace flashgg {
     
     
     // GRINDER PART ========================================>
+      std::string era_label;
+
       edm::Service<TFileService> fileService;
+      edm::EDGetTokenT<std::vector<PileupSummaryInfo>> puSummaryToken;
+
       TTree *outTree, *outTreeMeta;
       grinder::Event  out_event;
       grinder::Event *event_ptr;
@@ -208,38 +203,25 @@ namespace flashgg {
     // ============ ========================================>
   };
 
-  //---constructors
-  // HHWWggTagProducer::HHWWggTagProducer( ):
-  // photonToken_(),
-  // diphotonToken_()
-  // genParticleToken_(),
-  // electronToken_(),
-  // muonToken_(),
-  // METToken_(),
-  // cc_( consumesCollector() )
-  // // idSelector_( ParameterSet(), cc_ )
-
-  // {}
-
     //---standard
     GrinderHHWWggTagProducer::GrinderHHWWggTagProducer( const ParameterSet & iConfig):
-    photonToken_( consumes<View<Photon> >( iConfig.getParameter<InputTag> ( "PhotonTag" ) ) ),
-    diphotonToken_( consumes<View<flashgg::DiPhotonCandidate> >( iConfig.getParameter<InputTag> ( "DiPhotonTag" ) ) ),
-    vertexToken_( consumes<View<reco::Vertex> >( iConfig.getParameter<InputTag> ( "VertexTag" ) ) ),
-    genParticleToken_( consumes<View<reco::GenParticle> >( iConfig.getParameter<InputTag> ( "GenParticleTag" ) ) ),
-    muonToken_( consumes<View<Muon> >( iConfig.getParameter<InputTag> ( "MuonTag" ) ) ),
-    METToken_( consumes<View<Met> >( iConfig.getParameter<InputTag> ( "METTag" ) ) ),
-    mvaResultToken_( consumes<View<flashgg::DiPhotonMVAResult> >( iConfig.getParameter<InputTag> ( "MVAResultTag" ) ) ),
-    rhoTag_( consumes<double>( iConfig.getParameter<InputTag>( "rhoTag" ) ) ),
-    triggerRECO_( consumes<edm::TriggerResults>(iConfig.getParameter<InputTag>("RECOfilters") ) ),
-    triggerPAT_( consumes<edm::TriggerResults>(iConfig.getParameter<InputTag>("PATfilters") ) ),
-    triggerFLASHggMicroAOD_( consumes<edm::TriggerResults>( iConfig.getParameter<InputTag>("FLASHfilters") ) ),
-    systLabel_( iConfig.getParameter<string> ( "SystLabel" ) ),
-    cc_( consumesCollector() ), // need absence of comma on last entry 
-    globalVariablesComputer_(iConfig.getParameter<edm::ParameterSet>("globalVariables"), cc_)
-    // idSelector_( iConfig.getParameter<ParameterSet> ( "idSelection" ), cc_ )
-
+      photonToken_( consumes<View<Photon> >( iConfig.getParameter<InputTag> ( "PhotonTag" ) ) ),
+      diphotonToken_( consumes<View<flashgg::DiPhotonCandidate> >( iConfig.getParameter<InputTag> ( "DiPhotonTag" ) ) ),
+      vertexToken_( consumes<View<reco::Vertex> >( iConfig.getParameter<InputTag> ( "VertexTag" ) ) ),
+      genParticleToken_( consumes<View<reco::GenParticle> >( iConfig.getParameter<InputTag> ( "GenParticleTag" ) ) ),
+      muonToken_( consumes<View<Muon> >( iConfig.getParameter<InputTag> ( "MuonTag" ) ) ),
+      METToken_( consumes<View<Met> >( iConfig.getParameter<InputTag> ( "METTag" ) ) ),
+      mvaResultToken_( consumes<View<flashgg::DiPhotonMVAResult> >( iConfig.getParameter<InputTag> ( "MVAResultTag" ) ) ),
+      rhoTag_( consumes<double>( iConfig.getParameter<InputTag>( "rhoTag" ) ) ),
+      triggerRECO_( consumes<edm::TriggerResults>(iConfig.getParameter<InputTag>("RECOfilters") ) ),
+      triggerPAT_( consumes<edm::TriggerResults>(iConfig.getParameter<InputTag>("PATfilters") ) ),
+      triggerFLASHggMicroAOD_( consumes<edm::TriggerResults>( iConfig.getParameter<InputTag>("FLASHfilters") ) ),
+      systLabel_( iConfig.getParameter<string> ( "SystLabel" ) ),
+      cc_( consumesCollector() ), // need absence of comma on last entry 
+      globalVariablesComputer_(iConfig.getParameter<edm::ParameterSet>("globalVariables"), cc_)
+      // idSelector_( iConfig.getParameter<ParameterSet> ( "idSelection" ), cc_ )
     {
+      puSummaryToken        = consumes<std::vector<PileupSummaryInfo>>(iConfig.getParameter<edm::InputTag>("puSummaryToken_token"));
 
       inputDiPhotonName_= iConfig.getParameter<std::string > ( "DiPhotonName" );
       inputDiPhotonSuffixes_= iConfig.getParameter<std::vector<std::string> > ( "DiPhotonSuffixes" );
@@ -282,19 +264,6 @@ namespace flashgg {
 
       genInfo_ = iConfig.getUntrackedParameter<edm::InputTag>( "genInfo", edm::InputTag("generator") );
       genInfoToken_ = consumes<GenEventInfoProduct>( genInfo_ );
-      // numDiphoCand = fs->make<TH1F> ("numDiphoCand","numDiphoCand",10,0,10); 
-      // diphoton_idx_h = fs->make<TH1F> ("diphoton_idx_h","diphoton_idx_h",20,0,20); 
-      // diPhotons_size_h = fs->make<TH1F> ("diPhotons_size_h","diPhotons_size_h",20,0,20); 
-
-      // indexes = fs->make<TH1F> ("indexes","indexes",5,0,5);
-      // btags = fs->make<TH1F> ("btags","btags",100,0,1);
-
-      // numEvents = fs->make<TH1F> ("numEvents","numEvents",1,0,10);
-
-      // gen_weights = fs->make<TH1F> ("gen_weights","gen_weights",1000,-2,2);
-      // vars = fs->make<TH1F> ("vars","vars",10,0,10);
-      // cutFlow = fs->make<TH1F> ("cutFlow","Cut Flow",10,0,10);
-      // WTags = fs->make<TH1F> ("WTags","W Tags",3,0,3);
 
       leptonPtThreshold_ = iConfig.getParameter<double>( "leptonPtThreshold");
       muonEtaThreshold_ = iConfig.getParameter<double>( "muonEtaThreshold");
@@ -335,6 +304,9 @@ namespace flashgg {
       produces<vector<TagTruthBase>>();
       
       // ============ ========================================> GRIDNER PART
+        era_label             = iConfig.getParameter<std::string>("era_label");
+        out_eventMeta.is_data = iConfig.getParameter<bool>("is_data");
+
         outTree     = fileService->make<TTree>("Events", "Events");
         outTreeMeta = fileService->make<TTree>("EventsMeta", "EventsMeta");
 
@@ -366,8 +338,6 @@ namespace flashgg {
     }
 
     bool GrinderHHWWggTagProducer::checkPassMVAs( const flashgg::Photon*& leading_photon, const flashgg::Photon*& subleading_photon, edm::Ptr<reco::Vertex>& diphoton_vertex){
-      bool debug_mva = 0; 
-
       // MVA Check variables 
       double lp_mva_thresh = 0.07;
       double slp_mva_thresh = -0.03;
@@ -384,11 +354,6 @@ namespace flashgg {
       leading_pho_eta = leading_photon->p4().eta();
       sub_leading_pho_eta = subleading_photon->p4().eta();
 
-      // Debug
-      if(debug_mva){
-        cout << "leading mva: " << lp_Hgg_MVA << endl;
-        cout << "subleading mva: " << slp_Hgg_MVA << endl;
-      }
       // leading photon 
       // EB 
       if (( abs(leading_pho_eta) > 0) && ( abs(leading_pho_eta) < 1.4442)){
@@ -416,61 +381,126 @@ namespace flashgg {
       }
 
       if (lead_pass_TightPhoID && sublead_pass_TightPhoID){
-        if(debug_mva) cout << "PASS MVA Selections" << endl;
         return 1;
     }
 
     else{
-      if(debug_mva) cout << "FAIL MVA Selections" << endl;
       return 0; 
     }
 
     }
 
-    void GrinderHHWWggTagProducer::produce( edm::Event &event, const EventSetup & )
-    {
-      cout << "HHWWggTagProducer::produce();" << endl;
+    void GrinderHHWWggTagProducer::produce( edm::Event &iEvent, const EventSetup & ) {
+      /*
+          TODO:
+           V Remove Info from previous events
+           - Set Event Info
+           - weights
+           - Read primary vertices collection
+           V Pile-Up Info
+           V- electrons
+           V- muons
+           - photons
+           - genjets
+           - jets
+           V- met
+      */
 
-      // Get particle objects
-      event.getByToken( photonToken_, photons );
-      event.getByToken( diphotonToken_, diphotons );
-      // event.getByToken( genParticleToken_, genParticle ); // FIXME
-      event.getByToken( electronToken_, electrons );
-      event.getByToken( muonToken_, muons );
-      event.getByToken( METToken_, METs );
-      event.getByToken( mvaResultToken_, mvaResults );
-      event.getByToken( vertexToken_, vertices );
-      event.getByToken( rhoTag_, rho);
+      #ifdef DEBUG_GRINDER
+        std::cout << "GrinderHHWWggTagProducer::produce() ... " << std::endl;
+      #endif
+      // Remove Info from previous events ========================================================================================================
+      out_jets.clear();
+      out_muons.clear();
+      out_photons.clear();
+      out_electrons.clear();
+      out_event.weights.clear();
+      out_event.ps_weights.clear();
+      out_met.pt_unc_v.clear();
+      out_met.phi_unc_v.clear();
 
-      double rho_    = *rho;
+      // Set Event Info ============================================================================================================== TODO
 
-      // Saved Objects after selections
-      std::unique_ptr<vector<TagTruthBase> > truths( new vector<TagTruthBase> );
-      edm::RefProd<vector<TagTruthBase> > rTagTruth = event.getRefBeforePut<vector<TagTruthBase> >();
+      // Get particle objects ======================================================================================================== 
+      iEvent.getByToken( photonToken_, photons );
+      iEvent.getByToken( diphotonToken_, diphotons );
+      iEvent.getByToken( electronToken_, electrons );
+      iEvent.getByToken( muonToken_, muons );
+      iEvent.getByToken( METToken_, METs );
+      iEvent.getByToken( mvaResultToken_, mvaResults );
+      iEvent.getByToken( vertexToken_, vertices );
+      iEvent.getByToken( rhoTag_, rho);
 
+      #ifdef DEBUG_GRINDER
+        std::cout << "  event content :" << std::endl;
+        std::cout << "    N photons = " << photons->size() << std::endl;
+        std::cout << "    N diphotons = " << diphotons->size() << std::endl;
+        std::cout << "    N electrons = " << electrons->size() << std::endl;
+        std::cout << "    N muons = " << muons->size() << std::endl;
+        std::cout << "    rho = " << *rho << std::endl;
+      #endif
+
+      // iterate over MET =============================================================================================================
+      if( METs->size() != 1 ) { std::cout << "WARNING - #MET is not 1" << std::endl;}
+      pat::MET const & srcMET  = METs->front();
+
+      // https://twiki.cern.ch/twiki/bin/view/CMSPublic/WorkBookMiniAOD2017#ETmiss
+      out_met.pt  = srcMET.shiftedPt (pat::MET::NoShift, pat::MET::Type1);
+      out_met.phi = srcMET.shiftedPhi(pat::MET::NoShift, pat::MET::Type1);
+      out_met.significance = srcMET.metSignificance();
+      
+      if (not iEvent.isRealData()) {
+          out_met.gen_pt  = srcMET.genMET()->pt() ;
+          out_met.gen_phi = srcMET.genMET()->phi();
+
+          // https://github.com/cms-sw/cmssw/blob/CMSSW_8_0_X/DataFormats/PatCandidates/interface/MET.h#L151-L168
+          using Var = pat::MET::METUncertainty;
+          for (Var const & var : {Var::JetEnUp, Var::JetEnDown, Var::JetResUp, Var::JetResDown, Var::UnclusteredEnUp, Var::UnclusteredEnDown}) {
+            out_met.pt_unc_v.push_back(  srcMET.shiftedPt (var, pat::MET::Type1) ); 
+            out_met.phi_unc_v.push_back( srcMET.shiftedPhi(var, pat::MET::Type1) ); 
+          }
+      }
+      out_met.Flag_goodVertices                        =  false ;
+      out_met.Flag_globalSuperTightHalo2016Filter      =  false ;
+      out_met.Flag_HBHENoiseFilter                     =  false ;
+      out_met.Flag_HBHENoiseIsoFilter                  =  false ;
+      out_met.Flag_EcalDeadCellTriggerPrimitiveFilter  =  false ;
+      out_met.Flag_BadPFMuonFilter                     =  false ;
+      out_met.Flag_BadChargedCandidateFilter           =  false ;
+      out_met.Flag_eeBadScFilter                       =  false ;
+      out_met.Flag_ecalBadCalibReducedMINIAODFilter    =  false ;
+
+      // ================================================================================================================================================
       // FIXME count events 
       if (diphotons->size() == 0) return;
       edm::Ptr<flashgg::DiPhotonCandidate> dipho = diphotons->ptrAt( 0 );
-          
-          // Muons                                                                   
-          std::vector<edm::Ptr<flashgg::Muon> > goodMuons = selectMuons( muons->ptrs(), dipho, vertices->ptrs(), muonEtaThreshold_, 
-                                                                         leptonPtThreshold_, muPFIsoSumRelThreshold_, deltaRMuonPhoThreshold_, deltaRMuonPhoThreshold_ );
       
-      unsigned int jetCollectionIndex = diphotons->at( 0 ).jetCollectionIndex();
+      unsigned int jetCollectionIndex = dipho->jetCollectionIndex();
       edm::Handle<edm::View<flashgg::Jet> > Jets_ ;
-      event.getByToken( jetTokens_[jetCollectionIndex], Jets_ ); // testing 
-      
-        std::string era_label = "2017"; // FIXME
-      
-        // Remove Info from previous events ========================================================================================================
-        out_jets.clear();
-        out_muons.clear();
-        out_photons.clear();
-        out_electrons.clear();
-        out_event.weights.clear();
-        out_event.ps_weights.clear();
-        out_met.pt_unc_v.clear();
-        out_met.phi_unc_v.clear();
+      iEvent.getByToken( jetTokens_[jetCollectionIndex], Jets_ );
+      #ifdef DEBUG_GRINDER
+        std::cout << "  dipho jetCollectionIndex = " << jetCollectionIndex << std::endl;
+      #endif
+
+      // Pile-Up Info ========================================================================================================
+      // https://twiki.cern.ch/twiki/bin/view/CMS/Pileup_MC_Information
+      // uncertanties calc at the next step https://twiki.cern.ch/twiki/bin/view/CMS/PileupSystematicErrors
+      #ifdef DEBUG_GRINDER
+        std::cout << "Read Pile-Up Info ... " << std::endl;
+      #endif
+      if(not iEvent.isRealData()){
+        edm::Handle<std::vector<PileupSummaryInfo> > puSummary;
+        iEvent.getByToken(puSummaryToken, puSummary);
+
+        std::vector<PileupSummaryInfo>::const_iterator PVI;
+        out_event.TrueMCNumInteractions = -404;
+        for(PVI = puSummary->begin(); PVI != puSummary->end(); ++PVI) {
+          if( PVI->getBunchCrossing() != 0 ) continue;
+          out_event.DicedMCNumInteractions = PVI->getPU_NumInteractions();
+          out_event.TrueMCNumInteractions  = PVI->getTrueNumInteractions();
+          break;
+        }
+      }
         
         // jets ===================================================
         for( unsigned int candIndex_outer = 0; candIndex_outer <  Jets_->size() ; candIndex_outer++ ) {
@@ -542,12 +572,15 @@ namespace flashgg {
           out_jets.emplace_back( jet );
         }
         
-        // muons ===================================================
+        // muons ===================================================                                                            
+        std::vector<edm::Ptr<flashgg::Muon> > goodMuons = selectMuons( muons->ptrs(), dipho, vertices->ptrs(), muonEtaThreshold_, leptonPtThreshold_, muPFIsoSumRelThreshold_, deltaRMuonPhoThreshold_, deltaRMuonPhoThreshold_ );
+        cout << "N good muons = " << goodMuons.size() << "/" << muons->ptrs().size() << endl;
         for(auto m : goodMuons){
-          muon.pt     = m->pt();
-          muon.eta    = m->eta();
-          muon.phi    = m->phi();
-          muon.charge = m->charge();
+          const Muon & mu = *m;
+          muon.pt     = mu.pt();
+          muon.eta    = mu.eta();
+          muon.phi    = mu.phi();
+          muon.charge = mu.charge();
           
           // ID
           muon.isLoose  = mu.passed( reco::Muon::CutBasedIdLoose  );
@@ -562,10 +595,12 @@ namespace flashgg {
           out_muons.emplace_back( muon );
         }
         
-        // electrons ===================================================
+        // iterate over electrons ========================================================================================================
         // Electrons 
-        std::vector<edm::Ptr<Electron> > goodElectrons = selectStdElectrons( electrons->ptrs(), dipho, vertices->ptrs(), leptonPtThreshold_,
-                                                                               electronEtaThresholds_, useElectronMVARecipe_, useElectronLooseID_, deltaRPhoElectronThreshold_, DeltaRTrkElec_, deltaMassElectronZThreshold_, rho_, event.isRealData() );
+        // std::vector<edm::Ptr<Electron> > goodElectrons = selectStdElectrons( electrons->ptrs(), dipho, vertices->ptrs(), leptonPtThreshold_, electronEtaThresholds_, useElectronMVARecipe_, useElectronLooseID_, deltaRPhoElectronThreshold_, DeltaRTrkElec_, deltaMassElectronZThreshold_, *rho, iEvent.isRealData() );
+        std::vector<edm::Ptr<Electron> > goodElectrons = electrons->ptrs();
+
+        cout << "N good electrons = " << goodElectrons.size() << "/" << electrons->ptrs().size() << endl;
         for(auto e : goodElectrons){
           const Electron & el = *e;
           cout << "e pt, eta, phi, charge = " << el.pt() << " " << el.eta() << " " << el.phi() << " " << el.charge() << endl;
@@ -589,29 +624,31 @@ namespace flashgg {
           electron.sumPUPt            = pfIso->sumPUPt;
           cout << "e CH,NH,PH,PU = " << electron.sumChargedHadronPt << " " << electron.sumNeutralHadronEt << " " << electron.sumPhotonEt << " " << electron.sumPUPt << endl;
 
-          // Energy Scale and Smearing
-          // https://twiki.cern.ch/twiki/bin/view/CMS/EgammaMiniAODV2#Energy_Scale_and_Smearing
-          electron.ecalTrkEnergyPreCorr  = el.userFloat("ecalTrkEnergyPreCorr");
-          electron.ecalTrkEnergyPostCorr = el.userFloat("ecalTrkEnergyPostCorr");
-          electron.energyScaleValue      = el.userFloat("energyScaleValue");
-          electron.energySigmaValue      = el.userFloat("energySigmaValue");
-          electron.energyScaleUp         = el.userFloat("energyScaleUp");
-          electron.energyScaleDown       = el.userFloat("energyScaleDown");
-          electron.energyScaleStatUp     = el.userFloat("energyScaleStatUp");
-          electron.energyScaleStatDown   = el.userFloat("energyScaleStatDown");
-          electron.energyScaleSystUp     = el.userFloat("energyScaleSystUp");
-          electron.energyScaleSystDown   = el.userFloat("energyScaleSystDown");
-          electron.energyScaleGainUp     = el.userFloat("energyScaleGainUp");
-          electron.energyScaleGainDown   = el.userFloat("energyScaleGainDown");
-          // electron.energyScaleEtUp       = el.userFloat("energyScaleEtUp"); FIXME
-          // electron.energyScaleEtDown     = el.userFloat("energyScaleEtDown"); FIXME
-          electron.energySigmaUp         = el.userFloat("energySigmaUp");
-          electron.energySigmaDown       = el.userFloat("energySigmaDown");
-          electron.energySigmaPhiUp      = el.userFloat("energySigmaPhiUp");
-          electron.energySigmaPhiDown    = el.userFloat("energySigmaPhiDown");
-          electron.energySigmaRhoUp      = el.userFloat("energySigmaRhoUp");
-          electron.energySigmaRhoDown    = el.userFloat("energySigmaRhoDown");
-          cout << "some sys ... " << electron.ecalTrkEnergyPreCorr << " " << electron.ecalTrkEnergyPostCorr << " " << electron.energyScaleValue << " " << electron.energyScaleUp << " " << electron.energySigmaPhiUp << endl;
+          if(not iEvent.isRealData()){
+            // Energy Scale and Smearing
+            // https://twiki.cern.ch/twiki/bin/view/CMS/EgammaMiniAODV2#Energy_Scale_and_Smearing
+            electron.ecalTrkEnergyPreCorr  = el.userFloat("ecalTrkEnergyPreCorr");
+            electron.ecalTrkEnergyPostCorr = el.userFloat("ecalTrkEnergyPostCorr");
+            electron.energyScaleValue      = el.userFloat("energyScaleValue");
+            electron.energySigmaValue      = el.userFloat("energySigmaValue");
+            electron.energyScaleUp         = el.userFloat("energyScaleUp");
+            electron.energyScaleDown       = el.userFloat("energyScaleDown");
+            electron.energyScaleStatUp     = el.userFloat("energyScaleStatUp");
+            electron.energyScaleStatDown   = el.userFloat("energyScaleStatDown");
+            electron.energyScaleSystUp     = el.userFloat("energyScaleSystUp");
+            electron.energyScaleSystDown   = el.userFloat("energyScaleSystDown");
+            electron.energyScaleGainUp     = el.userFloat("energyScaleGainUp");
+            electron.energyScaleGainDown   = el.userFloat("energyScaleGainDown");
+            electron.energyScaleEtUp       = el.userFloat("energyScaleEtUp"); //FIXME ???
+            electron.energyScaleEtDown     = el.userFloat("energyScaleEtDown"); //FIXME ???
+            electron.energySigmaUp         = el.userFloat("energySigmaUp");
+            electron.energySigmaDown       = el.userFloat("energySigmaDown");
+            electron.energySigmaPhiUp      = el.userFloat("energySigmaPhiUp");
+            electron.energySigmaPhiDown    = el.userFloat("energySigmaPhiDown");
+            electron.energySigmaRhoUp      = el.userFloat("energySigmaRhoUp");
+            electron.energySigmaRhoDown    = el.userFloat("energySigmaRhoDown");
+            cout << "some sys ... " << electron.ecalTrkEnergyPreCorr << " " << electron.ecalTrkEnergyPostCorr << " " << electron.energyScaleValue << " " << electron.energyScaleUp << " " << electron.energySigmaPhiUp << endl;
+          }
           
           out_electrons.emplace_back( electron );
         }
@@ -620,7 +657,7 @@ namespace flashgg {
           edm::Ptr<flashgg::DiPhotonMVAResult> mvares = mvaResults->ptrAt( 0 );   
           edm::Ptr<reco::Vertex> diphoton_vertex = dipho->vtx();
           
-          const flashgg::Photon* leadPho = dipho->leadingPhoton();
+          const flashgg::Photon* leadPho    = dipho->leadingPhoton();
           const flashgg::Photon* subleadPho = dipho->subLeadingPhoton();
           bool passMVAs = checkPassMVAs(leadPho, subleadPho, diphoton_vertex);
           
@@ -634,10 +671,6 @@ namespace flashgg {
           }
         
         // weights ===================================================
-        
-        // met ===================================================
-        if( METs->size() != 1 ) { std::cout << "WARNING - #MET is not 1" << std::endl;}
-        Ptr<flashgg::Met> theMET = METs->ptrAt( 0 );
         
         outTree->Fill();
         cout << "outTree->Fill();" << endl;
