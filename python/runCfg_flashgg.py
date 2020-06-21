@@ -22,7 +22,7 @@ process.load("FWCore.MessageService.MessageLogger_cfi")
 process.load("Configuration.StandardSequences.GeometryDB_cff")
 process.load("Configuration.StandardSequences.MagneticField_cff")
 process.load("Configuration.StandardSequences.FrontierConditions_GlobalTag_condDBv2_cff")
-process.maxEvents = cms.untracked.PSet( input = cms.untracked.int32(-1) )
+process.maxEvents = cms.untracked.PSet( input = cms.untracked.int32(100) )
 # process.MessageLogger.cerr.FwkReport.reportEvery = cms.untracked.int32( 100 )
 process.MessageLogger.cerr.FwkReport.reportEvery = cms.untracked.int32( 1 )
 
@@ -85,15 +85,23 @@ from flashgg.MetaData.JobConfig import customize
 # set default options if needed
 customize.setDefault("maxEvents",-1)
 customize.setDefault("targetLumi",1.00e+3)
+
+print "customize.parse() ... "
 customize.parse()
+
+print "MetaConditionsReader(customize.metaConditions) ... "
 customize.metaConditions = MetaConditionsReader(customize.metaConditions)
 
+print "======= Global Tag"
+print customize.metaConditions
+print customize.metaConditions['globalTags']
 ### Global Tag
 from Configuration.AlCa.GlobalTag import GlobalTag
 if customize.processId == "Data":
     process.GlobalTag.globaltag = str(customize.metaConditions['globalTags']['data'])
 else:
     process.GlobalTag.globaltag = str(customize.metaConditions['globalTags']['MC'])
+
 
 from flashgg.Systematics.SystematicsCustomize import *
 if True : # jetSystematicsInputTags = createStandardSystematicsProducers(process , customize)
@@ -172,9 +180,9 @@ if customize.doHHWWggTag:
       electron_medium_id = "cutBasedElectronID-Fall17-94X-V1-medium"
       electron_tight_id  = "cutBasedElectronID-Fall17-94X-V1-tight"
     if YEAR_ERA == "2017":
-      electron_loose_id  = "cutBasedElectronID-Fall17-94X-V2-loose"  # FIXME cutBasedElectronID-Fall17-94X-V2-loose not available !!!
-      electron_medium_id = "cutBasedElectronID-Fall17-94X-V2-medium"
-      electron_tight_id  = "cutBasedElectronID-Fall17-94X-V2-tight"
+      electron_loose_id  = "cutBasedElectronID-Fall17-94X-V1-loose"  # FIXME cutBasedElectronID-Fall17-94X-V2-loose not available !!!
+      electron_medium_id = "cutBasedElectronID-Fall17-94X-V1-medium"
+      electron_tight_id  = "cutBasedElectronID-Fall17-94X-V1-tight"
     if YEAR_ERA == "2018":
       electron_loose_id  = "cutBasedElectronID-Fall17-94X-V2-loose"
       electron_medium_id = "cutBasedElectronID-Fall17-94X-V2-medium"
@@ -189,10 +197,12 @@ if customize.doHHWWggTag:
     from flashgg.Taggers.globalVariables_cff import globalVariables
     from flashgg.Taggers.flashggTags_cff import UnpackedJetCollectionVInputTag # should include jet systematics 
     from flashgg.MicroAOD.flashggJets_cfi import  maxJetCollections, flashggDeepCSV
+
+    diphoton_systematics_tags = cms.vstring("FNUFEBDown01sigma", "FNUFEBUp01sigma", "FNUFEEDown01sigma", "FNUFEEUp01sigma", "MCScaleGain1EBDown01sigma", "MCScaleGain1EBUp01sigma", "MCScaleGain6EBDown01sigma", "MCScaleGain6EBUp01sigma", "MCScaleHighR9EBDown01sigma", "MCScaleHighR9EBUp01sigma", "MCScaleHighR9EEDown01sigma", "MCScaleHighR9EEUp01sigma", "MCScaleLowR9EBDown01sigma", "MCScaleLowR9EBUp01sigma", "MCScaleLowR9EEDown01sigma", "MCScaleLowR9EEUp01sigma", "MCSmearHighR9EBPhiDown01sigma", "MCSmearHighR9EBPhiUp01sigma", "MCSmearHighR9EBRhoDown01sigma", "MCSmearHighR9EBRhoUp01sigma", "MCSmearHighR9EEPhiDown01sigma", "MCSmearHighR9EEPhiUp01sigma", "MCSmearHighR9EERhoDown01sigma", "MCSmearHighR9EERhoUp01sigma", "MCSmearLowR9EBPhiDown01sigma", "MCSmearLowR9EBPhiUp01sigma", "MCSmearLowR9EBRhoDown01sigma", "MCSmearLowR9EBRhoUp01sigma", "MCSmearLowR9EEPhiDown01sigma", "MCSmearLowR9EEPhiUp01sigma", "MCSmearLowR9EERhoDown01sigma", "MCSmearLowR9EERhoUp01sigma", "MaterialCentralBarrelDown01sigma", "MaterialCentralBarrelUp01sigma", "MaterialForwardDown01sigma", "MaterialForwardUp01sigma", "MaterialOuterBarrelDown01sigma", "MaterialOuterBarrelUp01sigma", "MvaShiftDown01sigma", "MvaShiftUp01sigma", "ShowerShapeHighR9EBDown01sigma", "ShowerShapeHighR9EBUp01sigma", "ShowerShapeHighR9EEDown01sigma", "ShowerShapeHighR9EEUp01sigma", "ShowerShapeLowR9EBDown01sigma", "ShowerShapeLowR9EBUp01sigma", "ShowerShapeLowR9EEDown01sigma", "ShowerShapeLowR9EEUp01sigma", "SigmaEOverEShiftDown01sigma", "SigmaEOverEShiftUp01sigma")
     
     IS_DATA  = True   # options.isData
     YEAR_ERA = "2017" # options.yearEra
-    process.GrinderflashggHHWWggTag = cms.EDProducer("GrinderFlashggHHWWggTagProducer",
+    process.GrinderflashggHHWWggTag = cms.EDAnalyzer("GrinderFlashggHHWWggTagProducer",
                                     ### NEW VARIABLES =====================================================>
                                     is_data              = cms.bool( IS_DATA ),
                                     era_label            = cms.string( YEAR_ERA ),
@@ -200,6 +210,9 @@ if customize.doHHWWggTag:
                                     electron_medium_id_token = cms.string(electron_medium_id),
                                     electron_tight_id_token  = cms.string(electron_tight_id),
                                     puSummaryToken_token = cms.InputTag('slimmedAddPileupInfo'), # cms.InputTag('addPileupInfo'),
+                                    genjets_token   = cms.InputTag('slimmedGenJets'),
+                                    generator_token = cms.InputTag('generator'),
+                                    lumiWeight      = cms.double(1.0),
                                     ### OLD VARIABLES =====================================================>
                                     globalVariables=globalVariables,
                                     PhotonTag = cms.InputTag('flashggRandomizedPhotons'),
@@ -210,15 +223,15 @@ if customize.doHHWWggTag:
                                     JetsName = cms.string("bRegProducer"), # WHAT ???
                                     JetsCollSize = cms.uint32(maxJetCollections), #
                                     JetsSuffixes = cms.vstring(''), #nominal and systematic variations 
-                                    DiPhotonName = cms.string('flashggPreselectedDiPhotons'), # 
+                                    DiPhotonName = cms.string('flashggDiPhotonSystematics'), # 
                                     VertexTag = cms.InputTag('offlineSlimmedPrimaryVertices'),
                                     GenParticleTag         = cms.InputTag('flashggPrunedGenParticles'),
                                     ElectronTag            = cms.InputTag('flashggSelectedElectrons'),
                                     MuonTag                = cms.InputTag('flashggSelectedMuons'),
                                     METTag                 = cms.InputTag('flashggMets'),
                                     # METTag                 = cms.InputTag('flashggMetsCorr'), # RunIIFall17-3-2-0 contains these and NOT flashggMets
-                                    JetTags                = UnpackedJetCollectionVInputTag, 
-                                    DiPhotonSuffixes = cms.vstring(''), #nominal and systematic variations
+                                    JetTags                = UnpackedJetCollectionVInputTag, # 
+                                    DiPhotonSuffixes = diphoton_systematics_tags, #nominal and systematic variations
                                     useVertex0only=cms.bool(False),
                                     MVAResultTag=cms.InputTag('flashggDiPhotonMVA'),
                                     leptonPtThreshold = cms.double(10.),
@@ -423,26 +436,12 @@ print "======================================================> 5a"
 from flashgg.MetaData.samples_utils import SamplesManager
 print "======================================================> 5b"
 
-# process.source = cms.Source ("PoolSource", fileNames = cms.untracked.vstring("file:/afs/cern.ch/work/p/pmandrik/dihiggs/7_microaod_UL/myMicroAODOutputFile.root"))
-process.source = cms.Source ("PoolSource", fileNames = cms.untracked.vstring("file:/afs/cern.ch/work/p/pmandrik/dihiggs/7_microaod_UL/CMSSW_10_6_8/src/flashgg/myMicroAODOutputFile.root"))
+process.source = cms.Source ("PoolSource", fileNames = cms.untracked.vstring("root://cms-xrd-global.cern.ch//store/user/spigazzi/flashgg/Era2017_RR-31Mar2018_v2/legacyRun2FullV1/DoubleEG/Era2017_RR-31Mar2018_v2-legacyRun2FullV1-v0-Run2017E-31Mar2018-v1/190606_095510/0000/myMicroAODOutputFile_639.root"))
+process.source = cms.Source ("PoolSource", fileNames = cms.untracked.vstring("file:/eos/cms/store/group/phys_higgs/cmshgg/atishelm/flashgg/HHWWgg_v2-4/94X_mc2017-RunIIFall18/GluGluToHHTo_WWgg_qqlnu_node2/HHWWgg_v2-4-94X_mc2017-RunIIFall18-v0-atishelm-100000events_wPU_MINIAOD-5f646ecd4e1c7a39ab0ed099ff55ceb9/200429_093533/0000/myMicroAODOutputFile_1.root"))
+#process.source = cms.Source ("PoolSource", fileNames = cms.untracked.vstring("root://cms-xrd-global.cern.ch:1094//store/user/spigazzi/flashgg/Era2017_RR-31Mar2018_v2/legacyRun2FullV1/VBFHToGG_M125_13TeV_amcatnlo_pythia8/Era2017_RR-31Mar2018_v2-legacyRun2FullV1-v0-RunIIFall17MiniAODv2-PU2017_12Apr2018_94X_mc2017_realistic_v14-v1/190703_112047/0000/myMicroAODOutputFile_68.root"))
 
 process.TFileService = cms.Service("TFileService",
                                    fileName = cms.string("test.root"))
-
-#process.load("flashgg.Taggers.diphotonTagDumper_cfi") ##  import diphotonTagDumper 
-#import flashgg.Taggers.dumperConfigTools as cfgTools
-
-
-#process.tagsDumper.className = "DiPhotonTagDumper"
-#process.tagsDumper.src = "flashggSystTagMerger"
-##process.tagsDumper.src = "flashggTagSystematics"
-#process.tagsDumper.processId = "test"
-#process.tagsDumper.dumpTrees = customize.dumpTrees
-#process.tagsDumper.dumpWorkspace = customize.dumpWorkspace
-#process.tagsDumper.dumpHistos = False
-#process.tagsDumper.quietRooFit = True
-#process.tagsDumper.nameTemplate = cms.untracked.string("$PROCESS_$SQRTS_$CLASSNAME_$SUBCAT_$LABEL")
-#process.tagsDumper.splitPdfByStage0Cat = cms.untracked.bool(customize.doHTXS)
 
 #if customize.options.WeightName :
     #lheProduct = customize.dataset[1]["LHESourceName"].split("_")
@@ -510,7 +509,6 @@ process.flashggMetFilters.requiredFilterNames = cms.untracked.vstring([filter.en
 
 # HHWWggTagsOnly requires zeroeth vertex, but not modifySystematicsWorkflowForttH
 if customize.HHWWggTagsOnly or True:
-    #debug
     process.content = cms.EDAnalyzer("EventContentAnalyzer")
     process.p = cms.Path(process.dataRequirements*
                          process.flashggMetFilters*
@@ -520,7 +518,7 @@ if customize.HHWWggTagsOnly or True:
                          #process.flashggMetSystematics*
                          #process.flashggMuonSystematics*process.flashggElectronSystematics*
                          (process.flashggUnpackedJets)* #*process.jetSystematicsSequence)*
-                        #  process.content* 
+                         #process.content* 
                          process.flashggTagSequence)
 
 if customize.doBJetRegression:
@@ -589,33 +587,18 @@ process.flashggTagSorter.StoreOtherTagInfo = True
 process.flashggTagSorter.BlindedSelectionPrintout = True
 
 ### Rerun microAOD sequence on top of microAODs using the parent dataset ???
-if customize.useParentDataset:
-    print "\n\n\n Rerun microAOD sequence on top of microAODs using the parent dataset ??? <<<<<====="
-    runRivetSequence(process, customize.metaConditions)
-    if customize.recalculatePDFWeights and is_signal and not customize.processId.count("bbh"):
-        recalculatePDFWeights(process, customize.metaConditions)
+if customize.useParentDataset or False:
+    #print "\n\n\n Rerun microAOD sequence on top of microAODs using the parent dataset ??? <<<<<====="
+    #runRivetSequence(process, customize.metaConditions)
+    recalculatePDFWeights(process, customize.metaConditions)
         
 print "======================================================> 7"
 
-############################################
-## Additional details on tag sorter steps ##
-############################################
-
-
-##############
-## Dump EDM ##
-##############
-
-#process.out = cms.OutputModule("PoolOutputModule", fileName = cms.untracked.string('CustomizeWillChangeThisAnyway.root'),
-#                               outputCommands = cms.untracked.vstring('keep *') # dump everything! small tests only!
-#                               )
-#process.e = cms.EndPath(process.out)
-
-############################
-## Dump the output Python ##
-############################
-#print process.dumpPython()
-#processDumpFile = open('processDump.py', 'w')
-#print >> processDumpFile, process.dumpPython()
-# call the customization
 customize(process)
+
+print "Final path:"
+print process.p
+
+
+
+

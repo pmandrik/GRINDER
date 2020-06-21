@@ -6,11 +6,14 @@
     <class  name = "grinder::Photon" />
     <class  name = "grinder::Electron" />
     <class  name = "grinder::MET" />
+    <class  name = "grinder::GenParticle" />
 
     <class  name = "std::vector<grinder::Jet>" />
     <class  name = "std::vector<grinder::Muon>" />
     <class  name = "std::vector<grinder::Photon>" />
     <class  name = "std::vector<grinder::Electron>" />
+    <class  name = "std::vector<grinder::GenParticle>" />
+
 
 </lcgdict>
 

@@ -19,6 +19,7 @@ namespace grinder{
   // ========================================================= Electron ========================================================= 
   class Electron{
     public:
+    std::vector<Bool_t> diphotons_veto;
     Float_t pt, eta, phi;
     Int_t charge;
     Bool_t  isLoose, isMedium, isTight;
@@ -28,6 +29,7 @@ namespace grinder{
   // ========================================================= Muon ========================================================= 
   class Muon{
     public:
+    std::vector<Bool_t> diphotons_veto;
     Float_t pt, eta, phi, relIsoTrk, relIsoPF;
     Int_t charge;
     Bool_t isLoose, isMedium, isTight;
@@ -40,6 +42,7 @@ namespace grinder{
     std::vector<Float_t> JEC_unc_v_u, JEC_unc_v_d;
     Float_t resolution, sf, sf_u, sf_d, getJet_pt;
     Bool_t isTight;
+    Int_t hadronFlavour, partonFlavour;
 
     Float_t pfDeepCSVJetTags_probb, pfDeepCSVJetTags_probbb, pfDeepCSVJetTags_probc, pfDeepCSVJetTags_probudsg;
     Float_t pfDeepFlavourJetTags_probb, pfDeepFlavourJetTags_probbb, pfDeepFlavourJetTags_problepb, pfDeepFlavourJetTags_probc, pfDeepFlavourJetTags_probuds, pfDeepFlavourJetTags_probg;
@@ -51,6 +54,12 @@ namespace grinder{
     std::vector<Float_t> pt_unc_v, phi_unc_v;
     Bool_t Flag_goodVertices, Flag_globalSuperTightHalo2016Filter, Flag_HBHENoiseFilter, Flag_HBHENoiseIsoFilter;
     Bool_t Flag_EcalDeadCellTriggerPrimitiveFilter, Flag_BadPFMuonFilter, Flag_BadChargedCandidateFilter, Flag_eeBadScFilter, Flag_ecalBadCalibReducedMINIAODFilter;
+  };
+  // ========================================================= MET ========================================================= 
+  class GenParticle{
+    public:
+    Float_t pt, eta, phi, m;
+    Int_t pdg_id, status;
   };
 
   // ========================================================= Event ========================================================= 
@@ -67,6 +76,10 @@ namespace grinder{
     Int_t DicedMCNumInteractions, TrueMCNumInteractions, RecoNumInteractions;
     
     std::vector<Float_t> trigger_fires;
+
+    // flashgg data:
+    Float_t flashgg_puweight, flashgg_nvtx, flashgg_npu;
+    std::vector<Float_t> flashgg_weights;
   };
   // ========================================================= Event Meta ========================================================= 
   class EventMetadata {

@@ -12,5 +12,6 @@ template class std::vector<grinder::Electron>;
 template class std::vector<grinder::Photon>;
 template class std::vector<grinder::Jet>;
 template class std::vector<grinder::MET>;
+template class std::vector<grinder::GenParticle>;
 class Event;
 class EventMetadata;

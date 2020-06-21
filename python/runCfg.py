@@ -220,6 +220,7 @@ process.grinderMain = cms.EDAnalyzer('Grinder',
   puSummaryToken_token = cms.InputTag('slimmedAddPileupInfo'), # cms.InputTag('addPileupInfo'),
   rho_token            = cms.InputTag("fixedGridRhoFastjetAll"),
   rho_central_token    = cms.InputTag("fixedGridRhoFastjetCentral"),
+  lumiWeight           = cms.double(1.0),
   # trigger
   triggerResults_token   = cms.InputTag("TriggerResults","","HLT"),
   triggerPrescales_L1T_token = cms.InputTag("patTrigger", "l1min"),
