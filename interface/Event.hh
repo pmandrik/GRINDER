@@ -44,6 +44,8 @@ namespace grinder{
     Bool_t isTight;
     Int_t hadronFlavour, partonFlavour;
 
+    Float_t PUJID;
+
     Float_t pfDeepCSVJetTags_probb, pfDeepCSVJetTags_probbb, pfDeepCSVJetTags_probc, pfDeepCSVJetTags_probudsg;
     Float_t pfDeepFlavourJetTags_probb, pfDeepFlavourJetTags_probbb, pfDeepFlavourJetTags_problepb, pfDeepFlavourJetTags_probc, pfDeepFlavourJetTags_probuds, pfDeepFlavourJetTags_probg;
   };
@@ -79,7 +81,9 @@ namespace grinder{
 
     // flashgg data:
     Float_t flashgg_puweight, flashgg_nvtx, flashgg_npu;
-    std::vector<Float_t> flashgg_weights;
+    Float_t flashgg_weight;
+    std::vector<Float_t> flashgg_mc_weights;
+    std::vector<Float_t> flashgg_diphoton_weights;
   };
   // ========================================================= Event Meta ========================================================= 
   class EventMetadata {
@@ -96,17 +100,6 @@ namespace grinder{
     std::vector<std::string> selections_triggers_names;
   };
 };
-
-
-
-
-
-
-
-
-
-
-
 
 #endif
 

@@ -152,9 +152,6 @@ namespace flashgg {
     //void produce( edm::Event &, const EventSetup & ) override;
     //void beginJob( edm::Run const & run, edm::EventSetup const & setup ) override;
 
-    edm::InputTag pdfWeight_;
-
-    double genTotalWeight;
     bool checkPassMVAs(const flashgg::Photon*& leading_photon, const flashgg::Photon*& subleading_photon, edm::Ptr<reco::Vertex>& diphoton_vertex);
     std::vector<edm::EDGetTokenT<edm::View<DiPhotonCandidate> > > diPhotonTokens_;
     std::string inputDiPhotonName_;
@@ -207,6 +204,8 @@ namespace flashgg {
 
     //---ID selector
     ConsumesCollector cc_;
+    edm::InputTag pdfWeight_;
+    edm::EDGetTokenT<std::vector<flashgg::PDFWeightObject> > pdfWeightToken_;
     GlobalVariablesComputer globalVariablesComputer_;
     // CutBasedDiPhotonObjectSelector idSelector_;
 
@@ -321,7 +320,6 @@ namespace flashgg {
 
     //---standard
     GrinderHHWWggTagProducer::GrinderHHWWggTagProducer( const ParameterSet & iConfig):
-      // pdfWeight_( iConfig.getUntrackedParameter<edm::InputTag>("flashggPDFWeightObject", edm::InputTag("flashggPDFWeightObject") ) ),
       photonToken_( consumes<View<Photon> >( iConfig.getParameter<InputTag> ( "PhotonTag" ) ) ),
       diphotonToken_( consumes<View<flashgg::DiPhotonCandidate> >( iConfig.getParameter<InputTag> ( "DiPhotonTag" ) ) ),
       vertexToken_( consumes<View<reco::Vertex> >( iConfig.getParameter<InputTag> ( "VertexTag" ) ) ),
@@ -335,6 +333,8 @@ namespace flashgg {
       triggerFLASHggMicroAOD_( consumes<edm::TriggerResults>( iConfig.getParameter<InputTag>("FLASHfilters") ) ),
       systLabel_( iConfig.getParameter<string> ( "SystLabel" ) ),
       cc_( consumesCollector() ), // need absence of comma on last entry 
+      pdfWeight_( iConfig.getUntrackedParameter<edm::InputTag>("flashggPDFWeightObject", edm::InputTag("flashggPDFWeightObject") ) ),
+      pdfWeightToken_( cc_.consumes<std::vector<flashgg::PDFWeightObject> >( pdfWeight_ ) ),
       globalVariablesComputer_(iConfig.getParameter<edm::ParameterSet>("globalVariables"), cc_)
       // idSelector_( iConfig.getParameter<ParameterSet> ( "idSelection" ), cc_ )
     {
@@ -430,14 +430,14 @@ namespace flashgg {
         // wei *= xsec.get("kf",1.)
         lumiWeight           = iConfig.getParameter<double>( "lumiWeight" );
         eventMeta.sumWeights = lumiWeight;
-        #ifdef DEBUG_GRINDER
+        // #ifdef DEBUG_GRINDER
           std::cout << "Grinder ... lumiWeight = " << eventMeta.sumWeights << std::endl;
-        #endif
+        // #endif
 
-        genJetToken           = consumes<edm::View<reco::GenJet>>(iConfig.getParameter<edm::InputTag>("genjets_token"));
-        era_label             = iConfig.getParameter<std::string>("era_label");
+        genJetToken       = consumes<edm::View<reco::GenJet>>(iConfig.getParameter<edm::InputTag>("genjets_token"));
+        era_label         = iConfig.getParameter<std::string>("era_label");
         eventMeta.is_data = iConfig.getParameter<bool>("is_data");
-        genToken = consumes<GenEventInfoProduct> (iConfig.getParameter<edm::InputTag>( "generator_token") ) ;
+        genToken          = consumes<GenEventInfoProduct> (iConfig.getParameter<edm::InputTag>( "generator_token") ) ;
 
         outTree     = fileService->make<TTree>("Events", "Events");
         outTreeMeta = fileService->make<TTree>("EventsMeta", "EventsMeta");
@@ -559,7 +559,7 @@ namespace flashgg {
            V genjets
            V jets
            V met
-           - save objects weights
+           V save objects weights
       */
 
       #ifdef DEBUG_GRINDER
@@ -570,11 +570,15 @@ namespace flashgg {
       out_muons.clear();
       out_photons.clear();
       out_electrons.clear();
-      event.weights.clear();
-      event.ps_weights.clear();
       out_met.pt_unc_v.clear();
       out_met.phi_unc_v.clear();
       out_particles.clear();
+
+      event.trigger_fires.clear();
+      event.weights.clear();
+      event.ps_weights.clear();
+      event.flashgg_mc_weights.clear();
+      event.flashgg_diphoton_weights.clear();
 
       // Get particle objects ======================================================================================================== 
       iEvent.getByToken( photonToken_, photons );
@@ -626,10 +630,8 @@ namespace flashgg {
         #endif
 
         for (reco::GenParticle const &p: *genParticles){
-          int const absPdgId = abs(p.pdgId());
-
           #ifdef DEBUG_GRINDER
-            cout << "   " << absPdgId << " " << p.mother(0) << " " << p.status() << endl;
+            cout << "   " << p.pdgId() << " " << p.mother(0) << " " << p.status() << endl;
           #endif
           
           particle.pt  = p.pt(); 
@@ -643,6 +645,8 @@ namespace flashgg {
       }
 
       // weights ========================================================================================================
+      event.flashgg_weight = lumiWeight;
+
       // https://twiki.cern.ch/twiki/bin/viewauth/CMS/LHEReaderCMSSW#Retrieving_the_weights
       if(not iEvent.isRealData()){
         #ifdef DEBUG_GRINDER
@@ -678,8 +682,15 @@ namespace flashgg {
 
         // flashgg events ...
         edm::Handle<vector<flashgg::PDFWeightObject> > WeightHandle;
-        product_exists = iEvent.getByLabel(pdfWeight_, WeightHandle);
+        // product_exists = iEvent.getByLabel(pdfWeight_, WeightHandle);
+        product_exists = iEvent.getByToken(pdfWeightToken_, WeightHandle);
+        #ifdef DEBUG_GRINDER
+          std::cout << "flashgg weights are exists? ... " << product_exists << std::endl;
+        #endif
         if(product_exists){
+          #ifdef DEBUG_GRINDER
+            std::cout << "N weights handlers ... " << (*WeightHandle).size() << std::endl;
+          #endif
           for( unsigned int weight_index = 0; weight_index < (*WeightHandle).size(); weight_index++ ){
             vector<uint16_t> compressed_weights = (*WeightHandle)[weight_index].pdf_weight_container; 
             vector<uint16_t> compressed_alpha_s_weights = (*WeightHandle)[weight_index].alpha_s_container; 
@@ -689,17 +700,21 @@ namespace flashgg {
             std::vector<float> uncompressed_alpha_s = (*WeightHandle)[weight_index].uncompress( compressed_alpha_s_weights );
             std::vector<float> uncompressed_scale = (*WeightHandle)[weight_index].uncompress( compressed_scale_weights );
 
-            for( unsigned int j=0; j<(*WeightHandle)[weight_index].pdf_weight_container.size();j++ )
-              event.flashgg_weights.push_back(uncompressed[j]);
-            for( unsigned int j=0; j<(*WeightHandle)[weight_index].alpha_s_container.size();j++ )
-              event.flashgg_weights.push_back(uncompressed_alpha_s[j]);
             if ( (*WeightHandle)[weight_index].qcd_scale_container.size() == 0 ) {
               for ( unsigned int j = 0 ; j < 9 ; j++ ) 
-                event.flashgg_weights.push_back(0.);
+                event.flashgg_mc_weights.push_back(0.);
             } else{
               for( unsigned int j=0; j<(*WeightHandle)[weight_index].qcd_scale_container.size();j++ )
-                event.flashgg_weights.push_back(uncompressed_scale[j]);
+                event.flashgg_mc_weights.push_back(uncompressed_scale[j]);
             }
+            for( unsigned int j=0; j<(*WeightHandle)[weight_index].pdf_weight_container.size();j++ )
+              event.flashgg_mc_weights.push_back(uncompressed[j]);
+            for( unsigned int j=0; j<(*WeightHandle)[weight_index].alpha_s_container.size();j++ )
+              event.flashgg_mc_weights.push_back(uncompressed_alpha_s[j]);
+
+          #ifdef DEBUG_GRINDER
+            std::cout << "i handler, N weights = ... " << weight_index << " " << uncompressed.size() << " " << uncompressed_alpha_s.size() << " " << uncompressed_scale.size() << std::endl;
+          #endif
           }
         }
       } 
@@ -741,7 +756,7 @@ namespace flashgg {
         diphotons_sys.push_back( diphotons_vec_tmp->ptrAt( 0 ) );
       }
 
-      edm::Ptr<flashgg::DiPhotonCandidate> diphotons_nom = diphotons_sys.at(0); // use only leading di-photons candidates
+      edm::Ptr<flashgg::DiPhotonCandidate> diphotons_nom = diphotons_sys.at(0);
 
       // ================================================================================================================================================
       unsigned int jetCollectionIndex = diphotons_nom->jetCollectionIndex(); // always 0 for all diphotons/sys
@@ -773,6 +788,7 @@ namespace flashgg {
       }
 
         // auto cache = globalVarsDumper->cache();
+        globalVariablesComputer_.update(iEvent);
         auto cache = globalVariablesComputer_.cache();
         event.flashgg_puweight = cache.puweight;
         event.flashgg_nvtx     = cache.nvtx;
@@ -821,6 +837,7 @@ namespace flashgg {
           jet.charge = j.jetCharge();
           jet.area   = j.jetArea();
 
+          jet.PUJID      = j.puJetIdMVA();
           // pT scale corrections
           // here you must use the CORRECTED jet pt
           // https://twiki.cern.ch/twiki/bin/view/CMS/JECUncertaintySources#Recommendation_for_analysis
@@ -842,7 +859,7 @@ namespace flashgg {
 
           // pT resolution
           // https://twiki.cern.ch/twiki/bin/viewauth/CMS/JetResolution
-          double JER_uncertanty = 0;
+          // double JER_uncertanty = 0;
           if (not iEvent.isRealData()) {
             jerResolution_parameters.setJetPt(j.pt()).setJetEta(j.eta());
             jerScaleFactor_parameters.setJetEta(j.eta()).setRho( *rho );
@@ -861,19 +878,15 @@ namespace flashgg {
             if (genJet) {
               jet.getJet_pt = genJet->pt();
               double energy_factor = ( rawP4.pt() - genJet->pt() ) / rawP4.pt();
-              JER_uncertanty = std::max( { (jet.sf - 1.) * energy_factor, (jet.sf_u - 1.) * energy_factor, (jet.sf_d - 1.) * energy_factor } );
+              // JER_uncertanty = std::max( { (jet.sf - 1.) * energy_factor, (jet.sf_u - 1.) * energy_factor, (jet.sf_d - 1.) * energy_factor } );
             } else {
               jet.getJet_pt = -1;
               double max_unc = std::max( { TMath::Abs(jet.sf), TMath::Abs(jet.sf_u), TMath::Abs(jet.sf_d) } );
-              JER_uncertanty = jet.resolution * std::sqrt( std::max(std::pow(max_unc, 2) - 1., 0.) );
+              // JER_uncertanty = jet.resolution * std::sqrt( std::max(std::pow(max_unc, 2) - 1., 0.) );
             }
-
-            #ifdef DEBUG_GRINDER
-              std::cout << "JER uncertanties ... " << JER_uncertanty << std::endl;
-            #endif
           }
 
-          double jet_maxPt = j.pt() * ( 1. + JEC_uncertanty + JER_uncertanty );
+          // double jet_maxPt = j.pt() * ( 1. + JEC_uncertanty + JER_uncertanty );
           // if( rawP4.pt()  < cut_jet_pt and jet_maxPt < cut_jet_pt ) continue;
           // if( TMath::Abs(rawP4.eta()) > cut_jet_eta ) continue;
           
@@ -917,12 +930,21 @@ namespace flashgg {
           jet.pfDeepCSVJetTags_probudsg = j.bDiscriminator("pfDeepCSVJetTags:probudsg");
 
           // DeepJet
-          jet.pfDeepFlavourJetTags_probb    = j.bDiscriminator("pfDeepFlavourJetTags:probb");
-          jet.pfDeepFlavourJetTags_probbb   = j.bDiscriminator("pfDeepFlavourJetTags:probbb");
-          jet.pfDeepFlavourJetTags_problepb = j.bDiscriminator("pfDeepFlavourJetTags:problepb");
-          jet.pfDeepFlavourJetTags_probc    = j.bDiscriminator("pfDeepFlavourJetTags:probc");
-          jet.pfDeepFlavourJetTags_probuds  = j.bDiscriminator("pfDeepFlavourJetTags:probuds");
-          jet.pfDeepFlavourJetTags_probg    = j.bDiscriminator("pfDeepFlavourJetTags:probg");
+          jet.pfDeepFlavourJetTags_probb    = j.bDiscriminator("mini_pfDeepFlavourJetTags:probb");
+          jet.pfDeepFlavourJetTags_probbb   = j.bDiscriminator("mini_pfDeepFlavourJetTags:probbb");
+          jet.pfDeepFlavourJetTags_problepb = j.bDiscriminator("mini_pfDeepFlavourJetTags:problepb");
+          jet.pfDeepFlavourJetTags_probc    = j.bDiscriminator("mini_pfDeepFlavourJetTags:probc");
+          jet.pfDeepFlavourJetTags_probuds  = j.bDiscriminator("mini_pfDeepFlavourJetTags:probuds");
+          jet.pfDeepFlavourJetTags_probg    = j.bDiscriminator("mini_pfDeepFlavourJetTags:probg");
+
+            #ifdef DEBUG_GRINDER
+              std::cout << "jet.pfDeepFlavourJetTags_probb = "     << jet.pfDeepFlavourJetTags_probb << std::endl;
+              std::cout << "jet.pfDeepFlavourJetTags_probbb = "    << jet.pfDeepFlavourJetTags_probbb << std::endl;
+              std::cout << "jet.pfDeepFlavourJetTags_problepb = "  << jet.pfDeepFlavourJetTags_problepb << std::endl;
+              std::cout << "jet.pfDeepFlavourJetTags_probc = "     << jet.pfDeepFlavourJetTags_probc << std::endl;
+              std::cout << "jet.pfDeepFlavourJetTags_probuds = "   << jet.pfDeepFlavourJetTags_probuds << std::endl;
+              std::cout << "jet.pfDeepFlavourJetTags_probg = "     << jet.pfDeepFlavourJetTags_probg << std::endl;
+            #endif
 
           if (not iEvent.isRealData()) {
             jet.hadronFlavour = j.hadronFlavour();
@@ -953,6 +975,7 @@ namespace flashgg {
           muon.relIsoPF  = (mu.pfIsolationR04().sumChargedHadronPt + std::max(0., mu.pfIsolationR04().sumNeutralHadronEt + mu.pfIsolationR04().sumPhotonEt - 0.5*mu.pfIsolationR04().sumPUPt))/mu.pt();
           muon.relIsoTrk = mu.isolationR03().sumPt/mu.pt();
 
+          muon.diphotons_veto.clear();
           for( auto diphoton_candidate : diphotons_sys ){
             float dRPhoLeadMuon    = deltaR( mu.eta(), mu.phi(), diphoton_candidate->leadingPhoton()->superCluster()->eta(),    diphoton_candidate->leadingPhoton()->superCluster()->phi()    );
             float dRPhoSubLeadMuon = deltaR( mu.eta(), mu.phi(), diphoton_candidate->subLeadingPhoton()->superCluster()->eta(), diphoton_candidate->subLeadingPhoton()->superCluster()->phi() ); 
@@ -977,6 +1000,7 @@ namespace flashgg {
           electron.phi    = el.phi();
           electron.charge = el.charge();
 
+          electron.diphotons_veto.clear();
           for( auto diphoton_candidate : diphotons_sys ){
             bool rho_veto = phoVeto(e, diphoton_candidate, deltaRPhoElectronThreshold_, DeltaRTrkElec_, deltaMassElectronZThreshold_);
             electron.diphotons_veto.push_back( rho_veto );
@@ -987,7 +1011,6 @@ namespace flashgg {
           electron.isLoose  = el.electronID( electron_loose_id_token  );
           electron.isMedium = el.electronID( electron_medium_id_token );
           electron.isTight  = el.electronID( electron_tight_id_token  );
-          cout << "e loose,med,tight = " << electron.isLoose << " " << electron.isMedium << " " << electron.isTight << endl;
           
           // ISO https://twiki.cern.ch/twiki/bin/view/CMS/EgammaPFBasedIsolationRun2
           pfIso = & ( el.pfIsolationVariables() );
@@ -995,7 +1018,11 @@ namespace flashgg {
           electron.sumNeutralHadronEt = pfIso->sumNeutralHadronEt;
           electron.sumPhotonEt        = pfIso->sumPhotonEt;
           electron.sumPUPt            = pfIso->sumPUPt;
-          cout << "e CH,NH,PH,PU = " << electron.sumChargedHadronPt << " " << electron.sumNeutralHadronEt << " " << electron.sumPhotonEt << " " << electron.sumPUPt << endl;
+
+          #ifdef DEBUG_GRINDER
+            cout << "e loose,med,tight = " << electron.isLoose << " " << electron.isMedium << " " << electron.isTight << endl;
+            cout << "e CH,NH,PH,PU = " << electron.sumChargedHadronPt << " " << electron.sumNeutralHadronEt << " " << electron.sumPhotonEt << " " << electron.sumPUPt << endl;
+          #endif
 
           if(not iEvent.isRealData()){
             // Energy Scale and Smearing
@@ -1020,7 +1047,7 @@ namespace flashgg {
             electron.energySigmaPhiDown    = el.userFloat("energySigmaPhiDown");
             electron.energySigmaRhoUp      = el.userFloat("energySigmaRhoUp");
             electron.energySigmaRhoDown    = el.userFloat("energySigmaRhoDown");
-            cout << "some sys ... " << electron.ecalTrkEnergyPreCorr << " " << electron.ecalTrkEnergyPostCorr << " " << electron.energyScaleValue << " " << electron.energyScaleUp << " " << electron.energySigmaPhiUp << endl;
+            // cout << "some sys ... " << electron.ecalTrkEnergyPreCorr << " " << electron.ecalTrkEnergyPostCorr << " " << electron.energyScaleValue << " " << electron.energyScaleUp << " " << electron.energySigmaPhiUp << endl;
 
             // 2017 year : 
             // Requested UserFloat energyScaleEtUp is not available! Possible UserFloats are: 
@@ -1038,6 +1065,11 @@ namespace flashgg {
           const flashgg::Photon* leadPho    = diphoton_candidate->leadingPhoton();
           const flashgg::Photon* subleadPho = diphoton_candidate->subLeadingPhoton();
           // bool passMVAs = checkPassMVAs(leadPho, subleadPho, diphoton_vertex);
+
+          #ifdef DEBUG_GRINDER
+            auto dc_p4 = diphoton_candidate->p4();
+            std::cout << "dipho mass vs ph+ph mass = " << dc_p4.mass() << " " << (leadPho->p4() + subleadPho->p4()).mass() << endl;
+          #endif
           
           vector<const flashgg::Photon*> phs = { leadPho, subleadPho };
           for(const flashgg::Photon* ph : phs){
@@ -1048,7 +1080,7 @@ namespace flashgg {
             out_photons.emplace_back( photon );
 
             #ifdef DEBUG_GRINDER
-              std::cout << "Photon ... " << photon.pt << " " << photon.eta << " " << photon.phi << std::endl;
+              std::cout << "Photon ... " << photon.pt << " " << photon.eta << " " << photon.phi << " " << photon.mva_value << std::endl;
               std::cout << "n weights = " << ph->weightListEnd() - ph->weightListBegin() << std::endl;
               for(auto it = ph->weightListBegin(); it != ph->weightListEnd(); ++it){
                 std::cout << "with weights = " << ph->weight( *it ) << " " << (*it) << endl;
@@ -1063,14 +1095,18 @@ namespace flashgg {
               }
             #endif
         }
-        
+
         // weights ===================================================
-        
+        for(auto it = diphotons_nom->weightListBegin(); it != diphotons_nom->weightListEnd(); ++it){
+          // std::cout << "with weights = " << diphotons_nom->weight( *it ) << " " << (*it) << endl;
+          event.flashgg_diphoton_weights.push_back( diphotons_nom->weight( *it ) ); // Central
+        }
+
         outTree->Fill();
         // cout << "outTree->Fill();" << endl;
         return;
       // ========================================================================================================
-    } 
+    }
 
     // ------------ method called when starting to processes a run  ------------
     void GrinderHHWWggTagProducer::beginRun( edm::Run const & run, edm::EventSetup const & setup ){
@@ -1100,7 +1136,10 @@ namespace flashgg {
       //#endif
     }
 
-    void GrinderHHWWggTagProducer::endRun(edm::Run const& run, edm::EventSetup const& setup){};
+    void GrinderHHWWggTagProducer::endRun(edm::Run const& run, edm::EventSetup const& setup){
+      std::cout << "Grinder ... lumiWeight = " << eventMeta.sumWeights << std::endl;
+      outTreeMeta->Fill();
+    };
 
     // ------------ method called once each job just before starting event loop  ------------
     void GrinderHHWWggTagProducer::beginJob(){
@@ -1108,7 +1147,6 @@ namespace flashgg {
 
     // ------------ method called once each job just after ending the event loop  ------------
     void GrinderHHWWggTagProducer::endJob(){
-      outTreeMeta->Fill();
     }
 
   } 

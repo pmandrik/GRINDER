@@ -83,8 +83,8 @@ print "Printing defaults"
 # import flashgg customization to check if we have signal or background
 from flashgg.MetaData.JobConfig import customize
 # set default options if needed
-customize.setDefault("maxEvents",-1)
-customize.setDefault("targetLumi",1.00e+3)
+customize.setDefault("maxEvents",    10 )
+customize.setDefault("targetLumi", 1000. )
 
 print "customize.parse() ... "
 customize.parse()
@@ -111,15 +111,19 @@ if True : # jetSystematicsInputTags = createStandardSystematicsProducers(process
 
     from flashgg.Taggers.flashggTagSequence_cfi import *
     process.flashggTagSequence = flashggPrepareTagSequence(process, customize.metaConditions)
+    print "PATH =================", process.flashggTagSequence
     
     import flashgg.Systematics.flashggDiPhotonSystematics_cfi as diPhotons_syst
     diPhotons_syst.setupDiPhotonSystematics( process, customize )
+    print "PATH =================", process.flashggTagSequence
 
 if True : # modifyTagSequenceForSystematics(process,jetSystematicsInputTags) # normally uncommented 
     process.flashggTagSequence.remove(process.flashggUnpackedJets) # to avoid unnecessary cloning
     process.flashggTagSequence.remove(process.flashggDifferentialPhoIdInputsCorrection) # Needs to be run before systematics
     from PhysicsTools.PatAlgos.tools.helpers import cloneProcessingSnippet,massSearchReplaceAnyInputTag
-    massSearchReplaceAnyInputTag(process.flashggTagSequence,cms.InputTag("flashggDifferentialPhoIdInputsCorrection"),cms.InputTag("flashggDiPhotonSystematics"))
+    # massSearchReplaceAnyInputTag(process.flashggTagSequence,cms.InputTag("flashggDifferentialPhoIdInputsCorrection"),cms.InputTag("flashggDiPhotonSystematics"))
+    process.flashggDiPhotonSystematics.src = cms.InputTag("flashggPreselectedDiPhotons")
+    # massSearchReplaceAnyInputTag(process.flashggTagSequence,cms.InputTag("flashggPreselectedDiPhotons"),cms.InputTag("flashggDiPhotonSystematics"))
     from flashgg.Taggers.flashggTags_cff import UnpackedJetCollectionVInputTag
     
     process.systematicsTagSequences = cms.Sequence()
@@ -198,6 +202,29 @@ if customize.doHHWWggTag:
     from flashgg.Taggers.flashggTags_cff import UnpackedJetCollectionVInputTag # should include jet systematics 
     from flashgg.MicroAOD.flashggJets_cfi import  maxJetCollections, flashggDeepCSV
 
+    print "UnpackedJetCollectionVInputTag = ", UnpackedJetCollectionVInputTag
+    # cms.InputTag("flashggUnpackedJets","0"), cms.InputTag("flashggUnpackedJets","1"), cms.InputTag("flashggUnpackedJets","2"), cms.InputTag("flashggUnpackedJets","3"), cms.InputTag("flashggUnpackedJets","4"), cms.InputTag("flashggUnpackedJets","5"), cms.InputTag("flashggUnpackedJets","6"), cms.InputTag("flashggUnpackedJets","7"), cms.InputTag("flashggUnpackedJets","8"), cms.InputTag("flashggUnpackedJets","9"), cms.InputTag("flashggUnpackedJets","10"), cms.InputTag("flashggUnpackedJets","11")
+
+    """
+with weights = 0.928702 Central
+with weights = 0.997022 FracRVWeightCentral
+with weights = 0.928084 FracRVWeightDown01sigma
+with weights = 0.929319 FracRVWeightUp01sigma
+with weights = 1.0007   LooseMvaSFCentral
+with weights = 0.928702 LooseMvaSFDown01sigma
+with weights = 0.928702 LooseMvaSFUp01sigma
+with weights = 0.990978 PreselSFCentral
+with weights = 0.914777 PreselSFDown01sigma
+with weights = 0.942728 PreselSFUp01sigma
+with weights = 0.99133  TriggerWeightCentral
+with weights = 0.926837 TriggerWeightDown01sigma
+with weights = 0.930568 TriggerWeightUp01sigma
+with weights = 0.947514 electronVetoSFCentral
+with weights = 0.919505 electronVetoSFDown01sigma
+with weights = 0.937929 electronVetoSFUp01sigma
+0.997022 * 1.0007 * 0.990978 * 0.99133 * 0.947514 = 0.9287023385000381
+    """
+
     diphoton_systematics_tags = cms.vstring("FNUFEBDown01sigma", "FNUFEBUp01sigma", "FNUFEEDown01sigma", "FNUFEEUp01sigma", "MCScaleGain1EBDown01sigma", "MCScaleGain1EBUp01sigma", "MCScaleGain6EBDown01sigma", "MCScaleGain6EBUp01sigma", "MCScaleHighR9EBDown01sigma", "MCScaleHighR9EBUp01sigma", "MCScaleHighR9EEDown01sigma", "MCScaleHighR9EEUp01sigma", "MCScaleLowR9EBDown01sigma", "MCScaleLowR9EBUp01sigma", "MCScaleLowR9EEDown01sigma", "MCScaleLowR9EEUp01sigma", "MCSmearHighR9EBPhiDown01sigma", "MCSmearHighR9EBPhiUp01sigma", "MCSmearHighR9EBRhoDown01sigma", "MCSmearHighR9EBRhoUp01sigma", "MCSmearHighR9EEPhiDown01sigma", "MCSmearHighR9EEPhiUp01sigma", "MCSmearHighR9EERhoDown01sigma", "MCSmearHighR9EERhoUp01sigma", "MCSmearLowR9EBPhiDown01sigma", "MCSmearLowR9EBPhiUp01sigma", "MCSmearLowR9EBRhoDown01sigma", "MCSmearLowR9EBRhoUp01sigma", "MCSmearLowR9EEPhiDown01sigma", "MCSmearLowR9EEPhiUp01sigma", "MCSmearLowR9EERhoDown01sigma", "MCSmearLowR9EERhoUp01sigma", "MaterialCentralBarrelDown01sigma", "MaterialCentralBarrelUp01sigma", "MaterialForwardDown01sigma", "MaterialForwardUp01sigma", "MaterialOuterBarrelDown01sigma", "MaterialOuterBarrelUp01sigma", "MvaShiftDown01sigma", "MvaShiftUp01sigma", "ShowerShapeHighR9EBDown01sigma", "ShowerShapeHighR9EBUp01sigma", "ShowerShapeHighR9EEDown01sigma", "ShowerShapeHighR9EEUp01sigma", "ShowerShapeLowR9EBDown01sigma", "ShowerShapeLowR9EBUp01sigma", "ShowerShapeLowR9EEDown01sigma", "ShowerShapeLowR9EEUp01sigma", "SigmaEOverEShiftDown01sigma", "SigmaEOverEShiftUp01sigma")
     
     IS_DATA  = True   # options.isData
@@ -212,12 +239,12 @@ if customize.doHHWWggTag:
                                     puSummaryToken_token = cms.InputTag('slimmedAddPileupInfo'), # cms.InputTag('addPileupInfo'),
                                     genjets_token   = cms.InputTag('slimmedGenJets'),
                                     generator_token = cms.InputTag('generator'),
-                                    lumiWeight      = cms.double(1.0),
+                                    lumiWeight      = cms.double(-999.0),
                                     ### OLD VARIABLES =====================================================>
                                     globalVariables=globalVariables,
                                     PhotonTag = cms.InputTag('flashggRandomizedPhotons'),
-                                    # DiPhotonTag = cms.InputTag('flashggDiPhotonSystematics'),
-                                    DiPhotonTag = cms.InputTag('flashggPreselectedDiPhotons'),
+                                    DiPhotonTag = cms.InputTag('flashggDiPhotonSystematics'),
+                                    # DiPhotonTag = cms.InputTag('flashggPreselectedDiPhotons'),
                                     # DiPhotonTag = cms.InputTag('flashggDiPhotons'),
                                     SystLabel = cms.string(""),
                                     JetsName = cms.string("bRegProducer"), # WHAT ???
@@ -287,6 +314,8 @@ if customize.doHHWWggTag:
     process.flashggTagSequence.remove(process.flashggUntagged)
     process.flashggTagSequence.remove(process.flashggUntagged)
     process.flashggTagSequence.remove(process.flashggTHQLeptonicTag)
+    process.flashggTagSequence.remove(process.flashggPreselectedDiPhotons)
+    process.flashggTagSequence.remove(process.flashggDiPhotonMVA)
     process.flashggTagSequence.replace(process.flashggTagSorter, process.grinder_flashggHHWWggTagSequence)
     
     minimalVariables += []
@@ -514,7 +543,9 @@ if customize.HHWWggTagsOnly or True:
                          process.flashggMetFilters*
                          process.flashggDiPhotons* # needed for 0th vertex from microAOD
                          process.flashggDifferentialPhoIdInputsCorrection*
+                         process.flashggPreselectedDiPhotons*
                          process.flashggDiPhotonSystematics*
+                         process.flashggDiPhotonMVA*
                          #process.flashggMetSystematics*
                          #process.flashggMuonSystematics*process.flashggElectronSystematics*
                          (process.flashggUnpackedJets)* #*process.jetSystematicsSequence)*
@@ -587,17 +618,24 @@ process.flashggTagSorter.StoreOtherTagInfo = True
 process.flashggTagSorter.BlindedSelectionPrintout = True
 
 ### Rerun microAOD sequence on top of microAODs using the parent dataset ???
-if customize.useParentDataset or False:
+if customize.useParentDataset:
     #print "\n\n\n Rerun microAOD sequence on top of microAODs using the parent dataset ??? <<<<<====="
     #runRivetSequence(process, customize.metaConditions)
     recalculatePDFWeights(process, customize.metaConditions)
+    process.p.insert(0, process.content)
         
 print "======================================================> 7"
 
 customize(process)
+process.MessageLogger.cerr.FwkReport.reportEvery = 1000
 
 print "Final path:"
 print process.p
+
+print "======================================================> 7"
+
+
+
 
 
 
