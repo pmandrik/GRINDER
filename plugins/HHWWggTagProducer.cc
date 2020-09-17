@@ -1,6 +1,6 @@
 // -*- C++ -*-
 
-// #define DEBUG_GRINDER 0
+// define DEBUG_GRINDER 1
 
 #include "FWCore/Framework/interface/EDProducer.h"
 #include "FWCore/Framework/interface/Event.h"
@@ -425,6 +425,8 @@ namespace flashgg {
       // ============ ========================================> GRIDNER PART
         // globalVarsDumper_ = new GlobalVariablesDumper( iConfig.getParameter<edm::ParameterSet>( "globalVariables" ), std::forward<edm::ConsumesCollector>(cc) );
 
+        //                       print wei,   xsec["xs"], totEvents,   self.targetLumi
+        // reset lumiWeight to  0.0110810550341   878.1    79243357.0     1000.0
         // wei = xsec["xs"]/float(totEvents)*self.targetLumi
         // wei *= xsec.get("br",1.)
         // wei *= xsec.get("kf",1.)
@@ -609,6 +611,18 @@ namespace flashgg {
       event.lumi  = iEvent.luminosityBlock();
       event.event = iEvent.id().event();
       event.RecoNumInteractions = vertices->size();
+      // https://github.com/easilar/MetTools/blob/test-recipe/MetPhiCorrections/plugins/metPhiCorrInfoWriter.cc
+      event.GoodRecoNumInteractions = 0;
+      for(unsigned i = 0; i < vertices->size(); i++) {
+          if( vertices->at(i).ndof() > 4 && ( fabs(vertices->at(i).z()) <= 24. ) && ( fabs(vertices->at(i).position().rho()) <= 2.0 ) )
+            event.GoodRecoNumInteractions++;
+      }
+
+      #ifdef DEBUG_GRINDER
+        if( event.GoodRecoNumInteractions != event.RecoNumInteractions )
+          std::cout << "GoodRecoNumInteractions/RecoNumInteractions " << event.GoodRecoNumInteractions << "/" << event.RecoNumInteractions << std::endl;
+      #endif
+      
       event.angular_pt_density = (*rho);
       if(iEvent.isRealData()) event.bunchCrossing = iEvent.bunchCrossing();
       eventMeta.numEvents += 1;
@@ -833,6 +847,8 @@ namespace flashgg {
           jet.etaRaw = rawP4.eta();
           jet.phiRaw = rawP4.phi();
           jet.mRaw   = rawP4.mass();
+
+          if( TMath::Abs(jet.etaRaw) > 4.0 and TMath::Abs(jet.eta) > 4.0 ) continue;
 
           jet.charge = j.jetCharge();
           jet.area   = j.jetArea();
@@ -1059,6 +1075,8 @@ namespace flashgg {
         
         // photons ===================================================
         edm::Ptr<flashgg::DiPhotonMVAResult> mvares = mvaResults->ptrAt( 0 );   
+        event.diphoton_mva = mvares->result;
+
         for( auto diphoton_candidate : diphotons_sys ){
           edm::Ptr<reco::Vertex> diphoton_vertex = diphoton_candidate->vtx();
           

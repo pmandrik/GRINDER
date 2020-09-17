@@ -467,6 +467,7 @@ print "======================================================> 5b"
 
 process.source = cms.Source ("PoolSource", fileNames = cms.untracked.vstring("root://cms-xrd-global.cern.ch//store/user/spigazzi/flashgg/Era2017_RR-31Mar2018_v2/legacyRun2FullV1/DoubleEG/Era2017_RR-31Mar2018_v2-legacyRun2FullV1-v0-Run2017E-31Mar2018-v1/190606_095510/0000/myMicroAODOutputFile_639.root"))
 process.source = cms.Source ("PoolSource", fileNames = cms.untracked.vstring("file:/eos/cms/store/group/phys_higgs/cmshgg/atishelm/flashgg/HHWWgg_v2-4/94X_mc2017-RunIIFall18/GluGluToHHTo_WWgg_qqlnu_node2/HHWWgg_v2-4-94X_mc2017-RunIIFall18-v0-atishelm-100000events_wPU_MINIAOD-5f646ecd4e1c7a39ab0ed099ff55ceb9/200429_093533/0000/myMicroAODOutputFile_1.root"))
+process.source = cms.Source ("PoolSource", fileNames = cms.untracked.vstring("file:/eos/cms/store/group/phys_higgs/resonant_HH/RunII/MicroAOD/HHWWggSignal/HHWWgg_SM2017/94X_mc2017-RunIIFall18/GluGluToHHTo_WWgg_qqlnu_nodeSM/HHWWgg_SM2017-94X_mc2017-RunIIFall18-v0-atishelm-HHWWgg_SM2017_100000events_wPU_MINIAOD-5f646ecd4e1c7a39ab0ed099ff55ceb9/200724_084804/0000/myMicroAODOutputFile_32.root"))
 #process.source = cms.Source ("PoolSource", fileNames = cms.untracked.vstring("root://cms-xrd-global.cern.ch:1094//store/user/spigazzi/flashgg/Era2017_RR-31Mar2018_v2/legacyRun2FullV1/VBFHToGG_M125_13TeV_amcatnlo_pythia8/Era2017_RR-31Mar2018_v2-legacyRun2FullV1-v0-RunIIFall17MiniAODv2-PU2017_12Apr2018_94X_mc2017_realistic_v14-v1/190703_112047/0000/myMicroAODOutputFile_68.root"))
 
 process.TFileService = cms.Service("TFileService",
@@ -627,7 +628,7 @@ if customize.useParentDataset:
 print "======================================================> 7"
 
 customize(process)
-process.MessageLogger.cerr.FwkReport.reportEvery = 1000
+process.MessageLogger.cerr.FwkReport.reportEvery = 5000
 
 print "Final path:"
 print process.p
