@@ -81,6 +81,9 @@ namespace grinder{
     
     std::vector<Float_t> trigger_fires;
 
+    Float_t PdfXs1, PdfXs2, PdfQScale;
+    Int_t PdfId1, PdfId2;
+
     // flashgg data:
     Float_t flashgg_puweight, flashgg_nvtx, flashgg_npu;
     Float_t flashgg_weight;

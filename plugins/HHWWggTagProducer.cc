@@ -1,6 +1,6 @@
 // -*- C++ -*-
 
-// define DEBUG_GRINDER 1
+// #define DEBUG_GRINDER 0
 
 #include "FWCore/Framework/interface/EDProducer.h"
 #include "FWCore/Framework/interface/Event.h"
@@ -287,7 +287,7 @@ namespace flashgg {
       std::vector<grinder::Photon>   *photons_ptr;
       std::vector<grinder::Electron> *electrons_ptr;
       std::vector<grinder::GenParticle> *particles_ptr;
-      grinder::MET                   *met_ptr;
+      grinder::MET                      *met_ptr;
       
       // Electrons
       std::string electron_loose_id_token, electron_medium_id_token, electron_tight_id_token;
@@ -687,6 +687,17 @@ namespace flashgg {
             event.weights.push_back( lhe_weights[i].wgt );
         } else event.originalXWGTUP = -11;
 
+        // PDF info ...
+        GenEventInfoProduct::PDF const *pdf = genEvtInfo->pdf();
+        if (pdf) {
+          event.PdfXs1 = pdf->x.first;
+          event.PdfXs2 = pdf->x.second;
+          event.PdfId1 = pdf->id.first;
+          event.PdfId2 = pdf->id.second;
+          event.PdfQScale = pdf->scalePDF;
+        }
+        cout << "pdf gen info status = " << pdf << endl;
+
         // alternative PS event weights
         const std::vector<double> & ps_weights = genEvtInfo->weights();
         if(not ps_weights.empty() and ps_weights.size() > 1){
@@ -725,6 +736,10 @@ namespace flashgg {
               event.flashgg_mc_weights.push_back(uncompressed[j]);
             for( unsigned int j=0; j<(*WeightHandle)[weight_index].alpha_s_container.size();j++ )
               event.flashgg_mc_weights.push_back(uncompressed_alpha_s[j]);
+
+          event.flashgg_mc_weights.push_back( (*WeightHandle)[weight_index].qcd_scale_container.size() );
+          event.flashgg_mc_weights.push_back( (*WeightHandle)[weight_index].pdf_weight_container.size() );
+          event.flashgg_mc_weights.push_back( (*WeightHandle)[weight_index].alpha_s_container.size() );
 
           #ifdef DEBUG_GRINDER
             std::cout << "i handler, N weights = ... " << weight_index << " " << uncompressed.size() << " " << uncompressed_alpha_s.size() << " " << uncompressed_scale.size() << std::endl;
@@ -1040,7 +1055,7 @@ namespace flashgg {
             cout << "e CH,NH,PH,PU = " << electron.sumChargedHadronPt << " " << electron.sumNeutralHadronEt << " " << electron.sumPhotonEt << " " << electron.sumPUPt << endl;
           #endif
 
-          if(not iEvent.isRealData()){
+          if(not iEvent.isRealData() ){
             // Energy Scale and Smearing
             // https://twiki.cern.ch/twiki/bin/view/CMS/EgammaMiniAODV2#Energy_Scale_and_Smearing
             electron.ecalTrkEnergyPreCorr  = el.userFloat("ecalTrkEnergyPreCorr");
@@ -1068,6 +1083,9 @@ namespace flashgg {
             // 2017 year : 
             // Requested UserFloat energyScaleEtUp is not available! Possible UserFloats are: 
             // ElectronMVAEstimatorRun2Fall17IsoV1Values ElectronMVAEstimatorRun2Fall17NoIsoV1Values ElectronMVAEstimatorRun2Spring15NonTrig25nsV1Values ElectronMVAEstimatorRun2Spring15Trig25nsV1Values ElectronMVAEstimatorRun2Spring15Trig50nsV1Values ElectronMVAEstimatorRun2Spring16GeneralPurposeV1Values ElectronMVAEstimatorRun2Spring16HZZV1Values ecalEnergyErrPostCorr ecalEnergyErrPreCorr ecalEnergyPostCorr ecalEnergyPreCorr ecalTrkEnergyErrPostCorr ecalTrkEnergyErrPreCorr ecalTrkEnergyPostCorr ecalTrkEnergyPreCorr energyScaleDown energyScaleGainDown energyScaleGainUp energyScaleStatDown energyScaleStatUp energyScaleSystDown energyScaleSystUp energyScaleUp energyScaleValue energySigmaDown energySigmaPhiDown energySigmaPhiUp energySigmaRhoDown energySigmaRhoUp energySigmaUp energySigmaValue energySmearNrSigma heepTrkPtIso 
+            // 2018 year :
+            // Requested UserFloat ecalTrkEnergyPreCorr is not available! Possible UserFloats are:
+            // ElectronMVAEstimatorRun2Fall17IsoV1Values ElectronMVAEstimatorRun2Fall17NoIsoV1Values ElectronMVAEstimatorRun2Spring16GeneralPurposeV1Values ElectronMVAEstimatorRun2Spring16HZZV1Values heepTrkPtIso
           }
           
           out_electrons.emplace_back( electron );
@@ -1111,12 +1129,30 @@ namespace flashgg {
               for(auto it = diphoton_candidate->weightListBegin(); it != diphoton_candidate->weightListEnd(); ++it){
                 std::cout << "with weights = " << diphoton_candidate->weight( *it ) << " " << (*it) << endl;
               }
+/*
+with weights = 0.945174 Central
+with weights = 1.0002 LooseMvaSFCentral
+with weights = 0.945079 LooseMvaSFDown01sigma
+with weights = 0.945269 LooseMvaSFUp01sigma
+with weights = 0.998998 PreselSFCentral
+with weights = 0.93762 PreselSFDown01sigma
+with weights = 0.952756 PreselSFUp01sigma
+with weights = 0.971922 TriggerWeightCentral
+with weights = 0.943257 TriggerWeightDown01sigma
+with weights = 0.947093 TriggerWeightUp01sigma
+with weights = 0.97326 electronVetoSFCentral
+with weights = 0.942389 electronVetoSFDown01sigma
+with weights = 0.947961 electronVetoSFUp01sigma
+with weights = 1 prefireWeight
+with weights = 1 prefireWeightDown01sigma
+with weights = 1 prefireWeightUp01sigma
+*/
             #endif
         }
 
         // weights ===================================================
         for(auto it = diphotons_nom->weightListBegin(); it != diphotons_nom->weightListEnd(); ++it){
-          // std::cout << "with weights = " << diphotons_nom->weight( *it ) << " " << (*it) << endl;
+          //std::cout << "with weights = " << diphotons_nom->weight( *it ) << " " << (*it) << endl;
           event.flashgg_diphoton_weights.push_back( diphotons_nom->weight( *it ) ); // Central
         }
 

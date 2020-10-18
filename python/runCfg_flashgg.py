@@ -22,7 +22,7 @@ process.load("FWCore.MessageService.MessageLogger_cfi")
 process.load("Configuration.StandardSequences.GeometryDB_cff")
 process.load("Configuration.StandardSequences.MagneticField_cff")
 process.load("Configuration.StandardSequences.FrontierConditions_GlobalTag_condDBv2_cff")
-process.maxEvents = cms.untracked.PSet( input = cms.untracked.int32(100) )
+process.maxEvents = cms.untracked.PSet( input = cms.untracked.int32(1000) )
 # process.MessageLogger.cerr.FwkReport.reportEvery = cms.untracked.int32( 100 )
 process.MessageLogger.cerr.FwkReport.reportEvery = cms.untracked.int32( 1 )
 
@@ -76,6 +76,12 @@ customize.options.register('doSystematics',
                            VarParsing.VarParsing.varType.bool,
                            'doSystematics'
                            )
+customize.options.register('ignoreNegR9',
+                           True,
+                           VarParsing.VarParsing.multiplicity.singleton,
+                           VarParsing.VarParsing.varType.bool,
+                           'ignoreNegR9'
+                           )
 
 print "======================================================> 2"
 
@@ -83,7 +89,6 @@ print "Printing defaults"
 # import flashgg customization to check if we have signal or background
 from flashgg.MetaData.JobConfig import customize
 # set default options if needed
-customize.setDefault("maxEvents",    10 )
 customize.setDefault("targetLumi", 1000. )
 
 print "customize.parse() ... "
@@ -117,6 +122,8 @@ if True : # jetSystematicsInputTags = createStandardSystematicsProducers(process
     diPhotons_syst.setupDiPhotonSystematics( process, customize )
     print "PATH =================", process.flashggTagSequence
 
+    applyL1Prefiring = customizeForL1Prefiring(process, customize.metaConditions, customize.processId)
+
 if True : # modifyTagSequenceForSystematics(process,jetSystematicsInputTags) # normally uncommented 
     process.flashggTagSequence.remove(process.flashggUnpackedJets) # to avoid unnecessary cloning
     process.flashggTagSequence.remove(process.flashggDifferentialPhoIdInputsCorrection) # Needs to be run before systematics
@@ -128,6 +135,9 @@ if True : # modifyTagSequenceForSystematics(process,jetSystematicsInputTags) # n
     
     process.systematicsTagSequences = cms.Sequence()
 
+print "Initial di-photon systematic:"
+for pset in process.flashggDiPhotonSystematics.SystMethods:
+  print  pset.Label.value()
 
 print "======================================================> 3"
 
@@ -316,6 +326,10 @@ with weights = 0.937929 electronVetoSFUp01sigma
     process.flashggTagSequence.remove(process.flashggTHQLeptonicTag)
     process.flashggTagSequence.remove(process.flashggPreselectedDiPhotons)
     process.flashggTagSequence.remove(process.flashggDiPhotonMVA)
+
+    process.flashggTagSequence.remove(process.flashggPrefireDiPhotons)
+    process.flashggTagSequence.remove(process.flashggVHhadMVA)
+
     process.flashggTagSequence.replace(process.flashggTagSorter, process.grinder_flashggHHWWggTagSequence)
     
     minimalVariables += []
@@ -323,6 +337,9 @@ with weights = 0.937929 electronVetoSFUp01sigma
     
 print process.flashggTagSequence
 print "======================================================> 3"
+
+#flashggPrefireDiPhotons+flashggPreselectedDiPhotons+flashggDiPhotonMVA+flashggVBFMVA+flashggVHhadMVA+flashggVBFDiPhoDiJetMVA+flashggUntagged+flashggVBFTag+flashggTTHDiLeptonTag+flashggTTHLeptonicTag+flashggTHQLeptonicTag+flashggTTHHadronicTag+flashggVHMetTag+flashggWHLeptonicTag+flashggZHLeptonicTag+flashggVHHadronicTag+flashggTagSorter
+
 
 print 'here we print the tag sequence after'
 print process.flashggTagSequence
@@ -532,24 +549,39 @@ process.load('flashgg/Systematics/flashggMetFilters_cfi')
 
 if customize.processId == "Data":
     metFilterSelector = "data"
+    filtersInputTag = cms.InputTag("TriggerResults", "", "RECO")
 else:
     metFilterSelector = "mc"
+    filtersInputTag = cms.InputTag("TriggerResults", "", "PAT")
 
 process.flashggMetFilters.requiredFilterNames = cms.untracked.vstring([filter.encode("ascii") for filter in customize.metaConditions["flashggMetFilters"][metFilterSelector]])
+process.flashggMetFilters.filtersInputTag = filtersInputTag
+
+# Split WH and ZH
+process.genFilter = cms.Sequence()
+if ((customize.processId.count("wh") or customize.processId.count("zh")) and not (customize.processId.count("powheg"))) and not customize.processId.count("wzh") :
+    print "enabling vh filter!!!!!"
+    process.load("flashgg/Systematics/VHFilter_cfi")
+    process.genFilter += process.VHFilter
+    process.VHFilter.chooseW = bool(customize.processId.count("wh"))
+    process.VHFilter.chooseZ = bool(customize.processId.count("zh"))
 
 # HHWWggTagsOnly requires zeroeth vertex, but not modifySystematicsWorkflowForttH
 if customize.HHWWggTagsOnly or True:
     process.content = cms.EDAnalyzer("EventContentAnalyzer")
     process.p = cms.Path(process.dataRequirements*
                          process.flashggMetFilters*
+                         process.genFilter*
                          process.flashggDiPhotons* # needed for 0th vertex from microAOD
                          process.flashggDifferentialPhoIdInputsCorrection*
+                         process.flashggUnpackedJets*
+                         process.flashggPrefireDiPhotons*
                          process.flashggPreselectedDiPhotons*
                          process.flashggDiPhotonSystematics*
                          process.flashggDiPhotonMVA*
                          #process.flashggMetSystematics*
                          #process.flashggMuonSystematics*process.flashggElectronSystematics*
-                         (process.flashggUnpackedJets)* #*process.jetSystematicsSequence)*
+                         #*process.jetSystematicsSequence)*
                          #process.content* 
                          process.flashggTagSequence)
 
@@ -614,9 +646,6 @@ def printSystematicInfo(process):
     printSystematicVPSet(vpsetlist2D)
 printSystematicInfo(process)
 
-# Detailed tag interpretation information printout (blinded)
-process.flashggTagSorter.StoreOtherTagInfo = True
-process.flashggTagSorter.BlindedSelectionPrintout = True
 
 ### Rerun microAOD sequence on top of microAODs using the parent dataset ???
 if customize.useParentDataset:
@@ -626,12 +655,18 @@ if customize.useParentDataset:
     process.p.insert(0, process.content)
         
 print "======================================================> 7"
+from RecoEgamma.EgammaTools.EgammaPostRecoTools import setupEgammaPostRecoSeq
+setupEgammaPostRecoSeq(process,era='2018-Prompt')  
 
 customize(process)
-process.MessageLogger.cerr.FwkReport.reportEvery = 5000
+process.MessageLogger.cerr.FwkReport.reportEvery = 10000
 
 print "Final path:"
 print process.p
+
+print "Final di-photon systematic:"
+for pset in process.flashggDiPhotonSystematics.SystMethods:
+  print  pset.Label.value()
 
 print "======================================================> 7"
 
