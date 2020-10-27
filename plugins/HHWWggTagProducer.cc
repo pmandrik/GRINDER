@@ -695,8 +695,12 @@ namespace flashgg {
           event.PdfId1 = pdf->id.first;
           event.PdfId2 = pdf->id.second;
           event.PdfQScale = pdf->scalePDF;
+          event.pdf1 = pdf->xPDF.first;
+          event.pdf2 = pdf->xPDF.second;
         }
-        cout << "pdf gen info status = " << pdf << endl;
+        #ifdef DEBUG_GRINDER
+          cout << "pdf gen info status = " << pdf << endl;
+        #endif
 
         // alternative PS event weights
         const std::vector<double> & ps_weights = genEvtInfo->weights();
@@ -892,11 +896,16 @@ namespace flashgg {
           // https://twiki.cern.ch/twiki/bin/viewauth/CMS/JetResolution
           // double JER_uncertanty = 0;
           if (not iEvent.isRealData()) {
-            jerResolution_parameters.setJetPt(j.pt()).setJetEta(j.eta());
-            jerScaleFactor_parameters.setJetEta(j.eta()).setRho( *rho );
+            jerResolution_parameters.setJetPt(j.pt());
+            jerResolution_parameters.setJetEta(j.eta());
+            jerResolution_parameters.setRho( *rho );
 
-            // jet.resolution = jerResolution.getResolution( jerResolution_parameters );
-            jet.resolution = jerResolution.getResolution( {{JME::Binning::JetPt, j.pt()}, {JME::Binning::JetEta, j.eta()}, {JME::Binning::Rho, *rho}} );
+            jerScaleFactor_parameters.setJetPt(j.pt());
+            jerScaleFactor_parameters.setJetEta(j.eta());
+            jerScaleFactor_parameters.setRho( *rho );
+
+            jet.resolution = jerResolution.getResolution( jerResolution_parameters );
+            // jet.resolution = jerResolution.getResolution( {{JME::Binning::JetPt, j.pt()}, {JME::Binning::JetEta, j.eta()}, {JME::Binning::Rho, *rho}} );
 
             jet.sf         = jerScaleFactor.getScaleFactor(jerScaleFactor_parameters);
             jet.sf_u       = jerScaleFactor.getScaleFactor(jerScaleFactor_parameters, Variation::UP);
@@ -945,8 +954,14 @@ namespace flashgg {
             else                                jet.isTight = (NEMF<0.90 && NumNeutralParticles>10);
           }
           else if(era_label == "2018"){
-            if      ( TMath::Abs( eta ) < 2.6 ) jet.isTight = (abs(eta)<=2.6 && CEMF<0.8 && CHM>0 && CHF>0 && NumConst>1 && NEMF<0.9 && MUF <0.8 && NHF < 0.9 ); 
-            else if ( TMath::Abs( eta ) < 2.7 ) jet.isTight = (abs(eta)>2.6 && abs(eta)<=2.7 && CEMF<0.8 && CHM>0 && NEMF<0.99 && MUF <0.8 && NHF < 0.9 ); 
+            /*
+            if      ( TMath::Abs( eta ) < 2.6 ) jet.isTight = (abs(eta)<=2.6 && CEMF<0.8 && CHM>0 && CHF>0 && NumConst>1 && NEMF<0.9 && MUF<0.8 && NHF<0.9 ); 
+            else if ( TMath::Abs( eta ) < 2.7 ) jet.isTight = (abs(eta)>2.6 && abs(eta)<=2.7 && CEMF<0.8 && CHM>0 && NEMF<0.99 && MUF<0.8 && NHF<0.9 ); 
+            else if ( TMath::Abs( eta ) < 3.0 ) jet.isTight = (NEMF>0.02 && NEMF<0.99 && NumNeutralParticles>2 && abs(eta)>2.7 && abs(eta)<=3.0 );
+            else                                jet.isTight = (NEMF<0.90 && NHF>0.2 && NumNeutralParticles>10 && abs(eta)>3.0 );
+            */
+            if      ( TMath::Abs( eta ) < 2.6 ) jet.isTight = (abs(eta)<=2.6 && CHM>0 && CHF>0 && NumConst>1 && NEMF<0.9 && NHF < 0.9 ); 
+            else if ( TMath::Abs( eta ) < 2.7 ) jet.isTight = (abs(eta)>2.6 && abs(eta)<=2.7 && CHM>0 && NEMF<0.99 && NHF < 0.9 ); 
             else if ( TMath::Abs( eta ) < 3.0 ) jet.isTight = (NEMF>0.02 && NEMF<0.99 && NumNeutralParticles>2 && abs(eta)>2.7 && abs(eta)<=3.0 );
             else                                jet.isTight = (NEMF<0.90 && NHF>0.2 && NumNeutralParticles>10 && abs(eta)>3.0 );
           }
@@ -1055,7 +1070,7 @@ namespace flashgg {
             cout << "e CH,NH,PH,PU = " << electron.sumChargedHadronPt << " " << electron.sumNeutralHadronEt << " " << electron.sumPhotonEt << " " << electron.sumPUPt << endl;
           #endif
 
-          if(not iEvent.isRealData() ){
+          if(not iEvent.isRealData() and era_label != "2018" ){
             // Energy Scale and Smearing
             // https://twiki.cern.ch/twiki/bin/view/CMS/EgammaMiniAODV2#Energy_Scale_and_Smearing
             electron.ecalTrkEnergyPreCorr  = el.userFloat("ecalTrkEnergyPreCorr");

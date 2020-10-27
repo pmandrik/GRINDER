@@ -83,6 +83,7 @@ namespace grinder{
 
     Float_t PdfXs1, PdfXs2, PdfQScale;
     Int_t PdfId1, PdfId2;
+    Float_t pdf1, pdf2;
 
     // flashgg data:
     Float_t flashgg_puweight, flashgg_nvtx, flashgg_npu;

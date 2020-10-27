@@ -185,7 +185,7 @@ if customize.doHHWWggTag:
     print "customizeTagSequencecustomizeTagSequencecustomizeTagSequencecustomizeTagSequencecustomizeTagSequence\n\n\n\n!!!!!!!!!"
     DEBUG_print_content = False
     IS_DATA  = False
-    YEAR_ERA = "2017" # FIXME
+    YEAR_ERA = "2016" # FIXME
     
     ### Electrons options ########################################################################################################################
     # https://twiki.cern.ch/twiki/bin/view/CMS/CutBasedElectronIdentificationRun2#Recipe_for_regular_users_formats
@@ -205,7 +205,6 @@ if customize.doHHWWggTag:
     # SF
     # https://twiki.cern.ch/twiki/bin/view/CMS/EgammaIDRecipesRun2#Electron_efficiencies_and_scale
     # Resolution / Correction
-
     
     import FWCore.ParameterSet.Config as cms
     from flashgg.Taggers.globalVariables_cff import globalVariables
@@ -237,8 +236,6 @@ with weights = 0.937929 electronVetoSFUp01sigma
 
     diphoton_systematics_tags = cms.vstring("FNUFEBDown01sigma", "FNUFEBUp01sigma", "FNUFEEDown01sigma", "FNUFEEUp01sigma", "MCScaleGain1EBDown01sigma", "MCScaleGain1EBUp01sigma", "MCScaleGain6EBDown01sigma", "MCScaleGain6EBUp01sigma", "MCScaleHighR9EBDown01sigma", "MCScaleHighR9EBUp01sigma", "MCScaleHighR9EEDown01sigma", "MCScaleHighR9EEUp01sigma", "MCScaleLowR9EBDown01sigma", "MCScaleLowR9EBUp01sigma", "MCScaleLowR9EEDown01sigma", "MCScaleLowR9EEUp01sigma", "MCSmearHighR9EBPhiDown01sigma", "MCSmearHighR9EBPhiUp01sigma", "MCSmearHighR9EBRhoDown01sigma", "MCSmearHighR9EBRhoUp01sigma", "MCSmearHighR9EEPhiDown01sigma", "MCSmearHighR9EEPhiUp01sigma", "MCSmearHighR9EERhoDown01sigma", "MCSmearHighR9EERhoUp01sigma", "MCSmearLowR9EBPhiDown01sigma", "MCSmearLowR9EBPhiUp01sigma", "MCSmearLowR9EBRhoDown01sigma", "MCSmearLowR9EBRhoUp01sigma", "MCSmearLowR9EEPhiDown01sigma", "MCSmearLowR9EEPhiUp01sigma", "MCSmearLowR9EERhoDown01sigma", "MCSmearLowR9EERhoUp01sigma", "MaterialCentralBarrelDown01sigma", "MaterialCentralBarrelUp01sigma", "MaterialForwardDown01sigma", "MaterialForwardUp01sigma", "MaterialOuterBarrelDown01sigma", "MaterialOuterBarrelUp01sigma", "MvaShiftDown01sigma", "MvaShiftUp01sigma", "ShowerShapeHighR9EBDown01sigma", "ShowerShapeHighR9EBUp01sigma", "ShowerShapeHighR9EEDown01sigma", "ShowerShapeHighR9EEUp01sigma", "ShowerShapeLowR9EBDown01sigma", "ShowerShapeLowR9EBUp01sigma", "ShowerShapeLowR9EEDown01sigma", "ShowerShapeLowR9EEUp01sigma", "SigmaEOverEShiftDown01sigma", "SigmaEOverEShiftUp01sigma")
     
-    IS_DATA  = True   # options.isData
-    YEAR_ERA = "2017" # options.yearEra
     process.GrinderflashggHHWWggTag = cms.EDAnalyzer("GrinderFlashggHHWWggTagProducer",
                                     ### NEW VARIABLES =====================================================>
                                     is_data              = cms.bool( IS_DATA ),
@@ -484,7 +481,8 @@ print "======================================================> 5b"
 
 process.source = cms.Source ("PoolSource", fileNames = cms.untracked.vstring("root://cms-xrd-global.cern.ch//store/user/spigazzi/flashgg/Era2017_RR-31Mar2018_v2/legacyRun2FullV1/DoubleEG/Era2017_RR-31Mar2018_v2-legacyRun2FullV1-v0-Run2017E-31Mar2018-v1/190606_095510/0000/myMicroAODOutputFile_639.root"))
 process.source = cms.Source ("PoolSource", fileNames = cms.untracked.vstring("file:/eos/cms/store/group/phys_higgs/cmshgg/atishelm/flashgg/HHWWgg_v2-4/94X_mc2017-RunIIFall18/GluGluToHHTo_WWgg_qqlnu_node2/HHWWgg_v2-4-94X_mc2017-RunIIFall18-v0-atishelm-100000events_wPU_MINIAOD-5f646ecd4e1c7a39ab0ed099ff55ceb9/200429_093533/0000/myMicroAODOutputFile_1.root"))
-process.source = cms.Source ("PoolSource", fileNames = cms.untracked.vstring("file:/eos/cms/store/group/phys_higgs/resonant_HH/RunII/MicroAOD/HHWWggSignal/HHWWgg_SM2017/94X_mc2017-RunIIFall18/GluGluToHHTo_WWgg_qqlnu_nodeSM/HHWWgg_SM2017-94X_mc2017-RunIIFall18-v0-atishelm-HHWWgg_SM2017_100000events_wPU_MINIAOD-5f646ecd4e1c7a39ab0ed099ff55ceb9/200724_084804/0000/myMicroAODOutputFile_32.root"))
+
+process.source = cms.Source ("PoolSource", fileNames = cms.untracked.vstring("file:/eos/cms/store/group/phys_higgs/resonant_HH/RunII/MicroAOD/HHWWggSignal/HHWWgg_SM2018/94X_mc2017-RunIIFall18/GluGluToHHTo_WWgg_qqlnu_nodeSM/HHWWgg_SM2018-94X_mc2017-RunIIFall18-v0-atishelm-HHWWgg_SM2018_100000events_wPU_MINIAOD-3ee3afd6b5a1410aea6d0b4d52723d06/200724_100408/0000/myMicroAODOutputFile_32.root"))
 #process.source = cms.Source ("PoolSource", fileNames = cms.untracked.vstring("root://cms-xrd-global.cern.ch:1094//store/user/spigazzi/flashgg/Era2017_RR-31Mar2018_v2/legacyRun2FullV1/VBFHToGG_M125_13TeV_amcatnlo_pythia8/Era2017_RR-31Mar2018_v2-legacyRun2FullV1-v0-RunIIFall17MiniAODv2-PU2017_12Apr2018_94X_mc2017_realistic_v14-v1/190703_112047/0000/myMicroAODOutputFile_68.root"))
 
 process.TFileService = cms.Service("TFileService",
@@ -655,8 +653,8 @@ if customize.useParentDataset:
     process.p.insert(0, process.content)
         
 print "======================================================> 7"
-from RecoEgamma.EgammaTools.EgammaPostRecoTools import setupEgammaPostRecoSeq
-setupEgammaPostRecoSeq(process,era='2018-Prompt')  
+# from RecoEgamma.EgammaTools.EgammaPostRecoTools import setupEgammaPostRecoSeq
+# setupEgammaPostRecoSeq(process,era='2018-Prompt')  
 
 customize(process)
 process.MessageLogger.cerr.FwkReport.reportEvery = 10000
